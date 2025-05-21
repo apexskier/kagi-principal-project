@@ -5,7 +5,8 @@
   "author": "Cameron Little <cameron@camlittle.com>",
   "license": "UNLICENSED",
   "workspaces": [
-    "crawlers/*"
+    "crawlers/*",
+    "web_server"
   ],
   "devDependencies": {
     "@types/node": "^22.15.21",

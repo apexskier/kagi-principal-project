@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Results - <%= q %></title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        background: #f9f9f9;
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem 0;
+      }
+      header {
+        width: 100%;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 2rem;
+        padding-left: 2rem;
+        padding-right: 2rem;
+      }
+      h1 {
+        margin: 0;
+        white-space: nowrap;
+      }
+      h1 a {
+        display: block; /* vertical alignment */
+        font-size: 1.5rem;
+        color: #222;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      form {
+        width: 100%;
+        display: flex;
+      }
+      input[type="search"] {
+        flex: 1;
+        padding: 0.75rem;
+        font-size: 1rem;
+        border: 1px solid #ccc;
+        border-radius: 2rem 0 0 2rem;
+        outline: none;
+      }
+      button[type="submit"] {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+        border: none;
+        border-radius: 0 2rem 2rem 0;
+        background: #0078d4;
+        color: #fff;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      button[type="submit"]:hover {
+        background: #005fa3;
+      }
+      ul.results {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        max-width: 700px;
+      }
+      li.result {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+        margin-bottom: 1.5rem;
+        padding: 1.25rem 1.5rem;
+        transition: box-shadow 0.2s;
+      }
+      li.result:hover {
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      }
+      .result-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0 0 0.25rem 0;
+        color: #0078d4;
+        text-decoration: none;
+      }
+      .result-url {
+        font-size: 0.95rem;
+        color: #555;
+        margin-bottom: 0.5rem;
+        display: block;
+        word-break: break-all;
+      }
+      .result-description {
+        font-size: 1rem;
+        color: #222;
+        margin-bottom: 0.5rem;
+      }
+      .result-meta {
+        font-size: 0.85rem;
+        color: #888;
+      }
+      .highlight {
+        background: #ffe066;
+        font-weight: bold;
+      }
+      .results-summary {
+        margin-bottom: 1.5rem;
+        color: #444;
+        font-size: 1.1rem;
+      }
+      .results-took {
+        margin-top: 2rem;
+        color: #888;
+        font-size: 0.95rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1><a href="/">Search Engine</a></h1>
+        <form
+          action="/search"
+          method="get"
+          role="search"
+          aria-label="Site search"
+        >
+          <input
+            type="search"
+            name="q"
+            placeholder="Search..."
+            aria-label="Search query"
+            required
+            autocomplete="off"
+            value="<%= q %>"
+          />
+          <button type="submit">Search</button>
+        </form>
+      </header>
+      <p class="results-summary">
+        <%= results.length %> result<%= results.length > 1 ? 's' : '' %> for
+        <strong><%= q %></strong> in <%= took_ms %> ms
+      </p>
+      <ul class="results">
+        <% results.forEach((result) => { %>
+        <li class="result">
+          <a
+            href="<%= result.source.canonical_url %>"
+            class="result-title"
+            rel="noopener noreferrer"
+          >
+            <%= result.source.title %>
+          </a>
+          <span class="result-url">
+            <a
+              href="<%= result.source.canonical_url %>"
+              class="result-title"
+              rel="noopener noreferrer"
+            >
+              <%= result.source.canonical_url %>
+            </a>
+          </span>
+          <p class="result-description"><%= result.source.description %></p>
+          <details>
+            <summary>Matches</summary>
+            <ul>
+              <% result.highlight.content_cleaned.forEach((match) => { %>
+              <li>
+                  <%# highlights are html stripped, then only have strong tags added, and are safe to render %>
+                  …<%- match %>…
+              </li>
+              <% }) %>
+          </details>
+          <dl class="result-meta">
+            <dt>Scraped at</dt>
+            <dd class="result-date">
+              <%= new Date(result.source.last_scraped).toLocaleDateString() %>
+            </dd>
+            <% if (result.source.last_updated) { %>
+            <dt>updated</dt>
+            <dd class="result-date">
+              <%= new Date(result.source.last_updated).toLocaleDateString() %>
+            </dd>
+            <% } %>
+          </dl>
+        </li>
+        <% }) %>
+      </ul>
+    </main>
+  </body>
+</html>

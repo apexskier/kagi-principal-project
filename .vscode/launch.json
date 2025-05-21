@@ -1,10 +1,28 @@
 {
   "configurations": [
     {
-      "name": "Run typescript file",
+      "name": "Scraper",
       "type": "node",
       "request": "launch",
-      "program": "${file}",
+      "program": "${workspaceFolder}/crawlers/page_scraper/index.ts",
+      "runtimeExecutable": "tsx",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "openOnFirstSessionStart",
+
+      // Files to exclude from debugger (e.g. call stack)
+      "skipFiles": [
+        // Node.js internal core modules
+        "<node_internals>/**",
+
+        // Ignore all dependencies (optional)
+        "${workspaceFolder}/node_modules/**"
+      ]
+    },
+    {
+      "name": "Web server",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/web_server/index.ts",
       "runtimeExecutable": "tsx",
       "console": "integratedTerminal",
       "internalConsoleOptions": "openOnFirstSessionStart",

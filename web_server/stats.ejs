@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stats</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        background: #f9f9f9;
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem 0;
+      }
+      header {
+        width: 100%;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 2rem;
+        padding-left: 2rem;
+        padding-right: 2rem;
+      }
+      h1 {
+        margin: 0;
+        white-space: nowrap;
+      }
+      h1 a {
+        display: block; /* vertical alignment */
+        font-size: 1.5rem;
+        color: #222;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      ul.results {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        max-width: 700px;
+      }
+      li.result {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+        margin-bottom: 1.5rem;
+        padding: 1.25rem 1.5rem;
+        transition: box-shadow 0.2s;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1><a href="/">Search Engine</a></h1>
+      </header>
+      <ul class="results">
+        <% results.forEach((result) => { %>
+        <li class="result">
+          <%= result.url_prefix %> - <%= result.scraped_url_count %> page<%=
+          result.scraped_url_count !== '1' ? 's' : '' %> tracked, <%=
+          result.checked_url_count %> page<%= result.checked_url_count !== '1' ?
+          's' : '' %> scraped
+        </li>
+        <% }) %>
+      </ul>
+      <p>
+        <% if (!after) { %>
+          <a href="/">First page</a> |
+        <% } %>
+        <a href="?after=<%= Math.max(...results.map(r => r.url_base_id)) %>"
+          >Next page</a
+        >
+      </p>
+    </main>
+  </body>
+</html>
