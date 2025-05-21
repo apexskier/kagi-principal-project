@@ -1,0 +1,14 @@
+{
+  "name": "page_scraper",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Cameron Little <cameron@camlittle.com>",
+  "license": "UNLICENSED",
+  "description": "",
+  "dependencies": {
+    "htmlparser2": "^10.0.0"
+  }
+}

@@ -11,6 +11,7 @@ Scale with multiple crawlers running in parallel, need locking (and scalable loc
 
 follow standards, can't hand-build scrapers for each site
 - Respect robots.txt
+- noindex meta tag or header
 - Use sitemaps (crawl what the site wants me to crawl, not link traversal).
 - Use canonical rels, don't duplicate crawling
 - Looks like not all the listed domains have sitemaps or robots.txt files
@@ -25,8 +26,9 @@ Architecture
 
 - Central DB
 - Crawlers
-    - URL sniffer - finds pages to look at content in. Given entrypoint (url), looks at robots.txt, sitemap.xml, http links. Deduplicates urls. Outputs additional pages to url sniff. Outputs pages to scrape. Outputs metadata (last crawled, what other things are linked to, etc)
-    - Page scraper - given a page (url), scrapes contents and adds to search indices. Outputs search indice vectors, outputs page metadata (human readable for UI, stats)
+    - Domain parser, 
+    - URL sniffer - finds pages to look at content in. Given entrypoint (url), looks at robots.txt, sitemap.xml, etc. Deduplicates urls. Outputs additional pages to url sniff. Outputs pages to scrape. Outputs metadata (last crawled, what other things are linked to, etc, outputs information about scrapability of urls)
+    - Page scraper - given a page (url), scrapes contents and adds to search indices. Outputs search indice vectors, outputs page metadata (human readable for UI, stats), outputs additional pages to crawl via link detection
 - API
     - search - given query, search DB and aggregate results, returns results and time to search
     - domain stats
@@ -74,3 +76,7 @@ What data are we storing per indexed page?
 
 
 **Optimizing rankings comes later. Need the project running to be able to test optimizations**
+
+
+HTML parsing libraries 
+- https://github.com/fb55/htmlparser2 - forgiving (people don't follow standards), popular, fast.

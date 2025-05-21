@@ -213,4 +213,3 @@ You can limit your crawling to the following domains:
 - www.vagrantup.com
 - www.yiiframework.com
 - yarnpkg.com
-- 

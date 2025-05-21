@@ -1,0 +1,15 @@
+{
+  "name": "kagi-principle-project",
+  "version": "1.0.0",
+  "description": "This is a prototype search engine for searching programming documentation, built as a take-home project for Kagi.",
+  "author": "Cameron Little <cameron@camlittle.com>",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "crawlers/*"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}
