@@ -22,6 +22,21 @@ const sharedHeaders = {
   "User-Agent": `ApexskierScraper/${version}`,
 };
 
+function parseRobotsValue(value: string | null): {
+  noindex: boolean;
+  nofollow: boolean;
+} {
+  // TODO: support bot names, may need to differentiate between header and meta tag values
+  if (!value) {
+    return { noindex: false, nofollow: false };
+  }
+  const tags = value.split(",").map((tag) => tag.trim().toLowerCase());
+  return {
+    noindex: tags.includes("noindex"),
+    nofollow: tags.includes("nofollow"),
+  };
+}
+
 function findTitle(document: Document): string | null {
   // first look for a <title> tag
   const titleNode = htmlparser2.DomUtils.findOne(
@@ -217,6 +232,19 @@ export async function scrape(
     return { failedStatus: headResponse.status };
   }
 
+  let noindex = false;
+  let nofollow = false;
+
+  const robotsHeader = headResponse.headers.get("x-robots-tag");
+  ({ noindex, nofollow } = parseRobotsValue(robotsHeader));
+  if (noindex) {
+    console.warn(
+      "noindex header prevents indexing, skipping:",
+      page.toString()
+    );
+    return NoUpdateNeeded;
+  }
+
   // verify content type is html
   const contentType = headResponse.headers.get("content-type");
   if (!contentType || !contentType.startsWith("text/html")) {
@@ -277,7 +305,6 @@ export async function scrape(
   const title = findTitle(document);
   const description = findDescription(document);
   const content = findContent(document);
-  const hrefs = findHrefs(document, page);
   const canonical =
     htmlparser2.DomUtils.findOne(
       (element) =>
@@ -286,6 +313,23 @@ export async function scrape(
         !!element.attribs.href.trim(),
       document
     )?.attribs.href || page.toString();
+  ({ noindex, nofollow } = parseRobotsValue(
+    htmlparser2.DomUtils.findOne(
+      (element) => element.name === "meta" && element.attribs.name === "robots",
+      document
+    )?.attribs.content ?? null
+  ));
+
+  if (noindex) {
+    console.warn(
+      "noindex meta tag prevents indexing, skipping:",
+      page.toString()
+    );
+    return NoUpdateNeeded;
+  }
+
+  // don't follow links if nofollow is set
+  const hrefs = nofollow ? [] : findHrefs(document, page);
 
   // TODO: no scrape before based on cache control
 
