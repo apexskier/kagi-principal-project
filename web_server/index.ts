@@ -4,7 +4,7 @@ import ejs from "ejs";
 import { Client as OpenSearchClient } from "@opensearch-project/opensearch";
 import fs from "fs";
 import path from "path";
-import sql from "./db";
+import sql, { UrlBase } from "../db";
 
 const namespace = "1f0365d8-2a44-6ef0-a5ff-7804559ef9c4";
 
@@ -100,7 +100,12 @@ const statsTemplate = ejs.compile(statsTemplateContent);
 app.get("/stats", async (req, res) => {
   const after = (req.query.after as string | null) || null;
 
-  const results = await sql`
+  const results = await sql<ReadonlyArray<{
+    url_base_id: UrlBase["id"];
+    url_prefix: UrlBase["url_prefix"];
+    scraped_url_count: number;
+    checked_url_count: number;
+  }>>`
       SELECT
         url_bases.id AS url_base_id,
         url_bases.url_prefix,

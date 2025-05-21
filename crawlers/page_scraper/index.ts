@@ -1,9 +1,10 @@
 import * as htmlparser2 from "htmlparser2";
-import sql from "./db";
+import sql from "../../db";
 import render from "dom-serializer";
 import type { Document } from "domhandler";
 import { Client as OpenSearchClient } from "@opensearch-project/opensearch";
 import { v5 as uuid } from "uuid";
+import { ScrapedUrl, UrlBase } from "../../db";
 
 // use v5 uuid to generate a unique id for the document based on the URL
 // can't use urls directly because of size constraints with the opensearch bulk API
@@ -143,7 +144,8 @@ function parseETag(etag: string | null): string | null {
 export async function scrape(
   page: URL,
   meta: {
-    etag: string | null;
+    id: number;
+    priorEtag: string | null;
     lastModified: Date | null;
   }
 ) {
@@ -169,7 +171,7 @@ export async function scrape(
 
   // check etag
   const etag = parseETag(headResponse.headers.get("etag"));
-  if (etag && etag === meta.etag) {
+  if (etag && etag === meta.priorEtag) {
     console.log("ETag matches, no update needed");
     return null;
   }
@@ -225,6 +227,17 @@ export async function scrape(
     document
   )?.attribs.href;
 
+  // TODO: no scrape before based on cache control
+
+  await sql<never>`
+    UPDATE scraped_urls
+    SET
+      etag = ${newEtag},
+      last_check_time = NOW(),
+      last_scrape_status = ${fullResponse.status}
+    WHERE id = ${meta.id};
+  `;
+
   return {
     etag: newEtag,
     lastModified: newDateModified,
@@ -244,12 +257,21 @@ const client = new OpenSearchClient({
   },
 });
 
-async function job(url: URL) {
+async function job(item: {
+  id: ScrapedUrl["id"];
+  path: ScrapedUrl["path"];
+  etag: ScrapedUrl["etag"];
+  last_modified: ScrapedUrl["last_modified"];
+  url_prefix: UrlBase["url_prefix"];
+}) {
+  const url = new URL(item.path, `https://${item.url_prefix}`);
+
   console.log("Scraping page:", url.toString());
 
   const result = await scrape(url, {
-    etag: null,
-    lastModified: null,
+    id: item.id,
+    priorEtag: item.etag,
+    lastModified: item.last_modified,
   });
   if (!result || !result.canonical) {
     return;
@@ -309,7 +331,15 @@ async function job(url: URL) {
 async function main() {
   // atomically select and lock a random URL that hasn't been scraped yet
 
-  const unchecked = await sql`
+  const unchecked = await sql<
+    ReadonlyArray<{
+      id: ScrapedUrl["id"];
+      path: ScrapedUrl["path"];
+      etag: ScrapedUrl["etag"];
+      last_modified: ScrapedUrl["last_modified"];
+      url_prefix: UrlBase["url_prefix"];
+    }>
+  >`
       WITH locked AS (
         UPDATE scraped_urls
         SET lock = ROW(${process.pid}::text, NOW())
@@ -322,9 +352,9 @@ async function main() {
           LIMIT 1
           FOR UPDATE SKIP LOCKED
         )
-        RETURNING id, url_base_id, path
+        RETURNING id, url_base_id, path, etag, last_modified
       )
-      SELECT locked.id, locked.path, url_bases.url_prefix
+      SELECT locked.id, locked.path, locked.etag, locked.last_modified, url_bases.url_prefix
       FROM locked
       JOIN url_bases ON locked.url_base_id = url_bases.id;
       `;
@@ -335,16 +365,12 @@ async function main() {
   }
 
   try {
-    const url = new URL(
-      unchecked[0].path,
-      `https://${unchecked[0].url_prefix}`
-    );
-    await job(url);
+    await job(unchecked[0]);
   } catch (err) {
     console.error("Error in job:", err);
   } finally {
     // unlock
-    await sql`
+    await sql<never>`
         UPDATE scraped_urls
         SET lock = NULL
         WHERE id = ${unchecked[0].id};
@@ -352,9 +378,11 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error("Error:", err);
-  process.exit(1);
-}).then(() => {
-  process.exit(0);
-});
+main()
+  .catch((err) => {
+    console.error("Error:", err);
+    process.exit(1);
+  })
+  .then(() => {
+    process.exit(0);
+  });
