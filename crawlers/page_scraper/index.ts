@@ -15,7 +15,7 @@ const namespace = "1f0365d8-2a44-6ef0-a5ff-7804559ef9c4";
 
 const config = {
   OPENSEARCH_HOST: "http://localhost:9200",
-  OPENSEARCH_INDEX: "page_content_1",
+  OPENSEARCH_INDEX: "page_content_2",
   OPENSEARCH_PIPELINE: "content_pipeline_1",
 };
 
@@ -590,7 +590,7 @@ async function lockAndProcess() {
   const unchecked = await selectAndLock(SelectionStrategy.RandomByUrlBase);
 
   if (unchecked.length === 0) {
-    console.log("No URLs to check");
+    console.warn("No URLs to check");
     return;
   }
 

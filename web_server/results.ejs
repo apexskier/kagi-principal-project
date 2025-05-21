@@ -91,7 +91,7 @@
         color: #0078d4;
         text-decoration: none;
       }
-      .result-url {
+      .result-url a {
         font-size: 0.95rem;
         color: #555;
         margin-bottom: 0.5rem;
@@ -153,22 +153,22 @@
         <% results.forEach((result) => { %>
         <li class="result">
           <a
-            href="<%= result.source.canonical_url %>"
+            href="<%= result.fields.canonical_url %>"
             class="result-title"
             rel="noopener noreferrer"
           >
-            <%= result.source.title %>
+            <%= result.fields.title %>
           </a>
           <span class="result-url">
             <a
-              href="<%= result.source.canonical_url %>"
+              href="<%= result.fields.canonical_url %>"
               class="result-title"
               rel="noopener noreferrer"
             >
-              <%= result.source.canonical_url %>
+              <%= result.fields.canonical_url %>
             </a>
           </span>
-          <p class="result-description"><%= result.source.description %></p>
+          <p class="result-description"><%= result.fields.description %></p>
           <details>
             <summary>Matches</summary>
             <ul>
@@ -182,12 +182,12 @@
           <dl class="result-meta">
             <dt>Scraped at</dt>
             <dd class="result-date">
-              <%= new Date(result.source.last_scraped).toLocaleString() %> <%# TODO: timezone %>
+              <%= new Date(result.fields.last_scraped).toLocaleString() %> <%# TODO: timezone %>
             </dd>
-            <% if (result.source.last_updated) { %>
+            <% if (result.fields.last_updated) { %>
             <dt>updated</dt>
             <dd class="result-date">
-              <%= new Date(result.source.last_updated).toLocaleString() %> <%# TODO: timezone %>
+              <%= new Date(result.fields.last_updated).toLocaleString() %> <%# TODO: timezone %>
             </dd>
             <% } %>
           </dl>

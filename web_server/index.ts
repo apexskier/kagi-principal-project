@@ -9,7 +9,7 @@ const namespace = "1f0365d8-2a44-6ef0-a5ff-7804559ef9c4";
 
 const config = {
   OPENSEARCH_HOST: "http://localhost:9200",
-  OPENSEARCH_INDEX: "page_content_1",
+  OPENSEARCH_INDEX: "page_content_2",
   OPENSEARCH_PIPELINE: "content_pipeline_1",
 };
 
@@ -59,13 +59,17 @@ app.get("/search", async (req, res) => {
           },
         },
       },
+      docvalue_fields: ["canonical_url", "last_scraped", "last_updated"],
+      fields: ["title", "description"],
+      _source: false,
       size: 10,
       from: 0,
+      timeout: "50ms", // wow, this works better than I expected
       highlight: {
         fields: {
           content_cleaned: {
             fragment_size: 150,
-            number_of_fragments: 3,
+            number_of_fragments: 1,
             pre_tags: ["<strong>"],
             post_tags: ["</strong>"],
           },
@@ -79,15 +83,23 @@ app.get("/search", async (req, res) => {
     return;
   }
 
-  const resultsHtml = resultsTemplate({
+  const parameters = {
     q: query,
     took_ms: results.body.took,
     results: results.body.hits.hits.map((hit) => ({
       id: hit._id,
       highlight: hit.highlight,
-      source: hit._source,
+      fields: Object.fromEntries(
+        Object.entries(hit.fields as {}).map(([key, value]) => {
+          if (Array.isArray(value)) {
+            return [key, value[0]];
+          }
+          return [key, value];
+        })
+      ),
     })),
-  });
+  };
+  const resultsHtml = resultsTemplate(parameters);
 
   res.send(resultsHtml);
 });

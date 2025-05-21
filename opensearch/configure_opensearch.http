@@ -1,5 +1,5 @@
 @pipeline_id = content_pipeline_1
-@index_id = page_content_1
+@index_id = page_content_2
 
 ### verify connectivity
 GET {{OPENSEARCH_BASE_URL}}
@@ -47,114 +47,46 @@ Content-Type: application/json
   ]
 }
 
-### set up index template
-PUT {{OPENSEARCH_BASE_URL}}/_index_template/page_content
-Authorization: Basic admin:{{OPENSEARCH_INITIAL_ADMIN_PASSWORD}}
-Content-Type: application/json
-
-{
-  "index_patterns": ["page_content*"],
-  "template": {
-    "mappings": {
-      "properties": {
-        "canonical_url": {
-          "type": "keyword"
-        },
-        "content": {
-          "type": "text"
-        },
-        "content_cleaned": {
-          "type": "text"
-        },
-        "last_scraped": {
-          "type": "date"
-        },
-        "last_updated": {
-          "type": "date"
-        },
-        "title": {
-          "type": "text"
-        },
-        "description": {
-          "type": "text"
-        },
-        "etag": {
-          "type": "keyword"
-        }
-      }
-    }
-  },
-  "version": 1,
-  "_meta": {
-    "description": "Template with typings for page content"
-  }
-}
-
-### verify index template exists
-GET {{OPENSEARCH_BASE_URL}}/_index_template/page_content
-Authorization: Basic admin:{{OPENSEARCH_INITIAL_ADMIN_PASSWORD}}
-
 ### delete index if it exists
 DELETE {{OPENSEARCH_BASE_URL}}/{{index_id}}
 
 ### create index
 PUT {{OPENSEARCH_BASE_URL}}/{{index_id}}
-
-### search index
-GET {{OPENSEARCH_BASE_URL}}/{{index_id}}/_search
 Content-Type: application/json
 
 {
-  "query": {
-    "function_score": {
-      "functions": [
-        {
-          "linear": {
-            "last_scraped": {
-              "origin": "2010-01-01",
-              "scale": "1h"
-            }
-          }
-        }
-      ]
+  "mappings": {
+    "properties": {
+      "canonical_url": {
+        "type": "keyword"
+      },
+      "content": {
+        "type": "text"
+      },
+      "content_cleaned": {
+        "type": "text"
+      },
+      "last_scraped": {
+        "type": "date"
+      },
+      "last_updated": {
+        "type": "date"
+      },
+      "title": {
+        "type": "text"
+      },
+      "description": {
+        "type": "text"
+      },
+      "etag": {
+        "type": "keyword"
+      }
     }
   }
 }
 
-###
-
-{
-  "query": {
-    "boosting": {
-      "positive": {
-        "bool": {
-          "must_not": [
-            {
-              "exists": {
-                "field": "canonical_url"
-              }
-            }
-          ]
-        }
-      },
-      "negative": {
-        "function_score": {
-          "functions": [
-            {
-              "linear": {
-                "last_scraped": {
-                  "origin": "2010-01-01",
-                  "scale": "1h"
-                }
-              }
-            }
-          ]
-        }
-      },
-      "negative_boost": 0.5
-    }
-  }
-}
+### get mappings of index
+GET {{OPENSEARCH_BASE_URL}}/{{index_id}}/_mapping
 
 ###
 GET {{OPENSEARCH_BASE_URL}}/_nodes/stats/indices/search
