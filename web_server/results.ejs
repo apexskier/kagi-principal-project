@@ -182,12 +182,12 @@
           <dl class="result-meta">
             <dt>Scraped at</dt>
             <dd class="result-date">
-              <%= new Date(result.source.last_scraped).toLocaleDateString() %>
+              <%= new Date(result.source.last_scraped).toLocaleString() %> <%# TODO: timezone %>
             </dd>
             <% if (result.source.last_updated) { %>
             <dt>updated</dt>
             <dd class="result-date">
-              <%= new Date(result.source.last_updated).toLocaleDateString() %>
+              <%= new Date(result.source.last_updated).toLocaleString() %> <%# TODO: timezone %>
             </dd>
             <% } %>
           </dl>

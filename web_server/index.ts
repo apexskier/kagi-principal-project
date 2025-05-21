@@ -124,7 +124,7 @@ app.get("/stats", async (req, res) => {
       LIMIT 20;
     `;
 
-  const statsHtml = statsTemplate({ after, results });
+  const statsHtml = statsTemplate({ after: after != '0', results });
   res.send(statsHtml);
 });
 

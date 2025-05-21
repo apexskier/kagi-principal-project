@@ -127,7 +127,23 @@ function findHrefs(document: Document, base: URL): ReadonlyArray<URL> {
         document
       ).map((element) => element.attribs.href.trim())
     )
-  ).map((href) => new URL(href, base));
+  )
+    .map((href) => new URL(href, base))
+    .filter((href) => {
+      // filter out non https URLs
+      if (href.protocol !== "https:") {
+        return false;
+      }
+      // simple optimization. If the href is just the base URL, it's not allowed or already in the url bases table.
+      if (href.pathname === "/") {
+        return false;
+      }
+      // Filter out hrefs that are the same as the current base URL
+      if (href.toString() === base.toString()) {
+        return false;
+      }
+      return true;
+    });
 }
 
 function parseETag(etag: string | null): string | null {
@@ -141,6 +157,26 @@ function parseETag(etag: string | null): string | null {
   return etag.replace(/(^"|"$)/g, "");
 }
 
+const NoUpdateNeeded = Symbol("NoUpdateNeeded");
+type NoUpdateNeeded = typeof NoUpdateNeeded;
+
+function isFailedStatus(
+  x:
+    | {
+        etag: string | null;
+        lastModified: Date | null;
+        title: string | null;
+        description: string | null;
+        content: string | null;
+        hrefs: ReadonlyArray<URL>;
+        canonical: string;
+        status: 200;
+      }
+    | { failedStatus: number }
+): x is { failedStatus: number } {
+  return (x as { failedStatus: number }).failedStatus !== undefined;
+}
+
 export async function scrape(
   page: URL,
   meta: {
@@ -148,19 +184,37 @@ export async function scrape(
     priorEtag: string | null;
     lastModified: Date | null;
   }
-) {
+): Promise<
+  | {
+      etag: string | null;
+      lastModified: Date | null;
+      title: string | null;
+      description: string | null;
+      content: string | null;
+      hrefs: ReadonlyArray<URL>;
+      canonical: string;
+      status: 200;
+    }
+  | NoUpdateNeeded
+  | { failedStatus: number }
+> {
   console.log("Initial HEAD request to:", page.toString());
   // first perform a HEAD request for a lighter weight check
   const headResponse = await fetch(page, {
     method: "HEAD",
     redirect: "follow",
     ...sharedHeaders,
+  }).catch((err) => {
+    // this can happen, for instance, if the SSL cert is bad
+    console.error("Error in HEAD request:", err);
+    return new Response(null, { status: 0 });
   });
   if (!headResponse.ok) {
     throw new Error(`Failed to fetch page: ${headResponse.status}`);
   }
   if (headResponse.status !== 200) {
-    throw new Error(`Failed to fetch page HEAD: ${headResponse.status}`);
+    console.warn(`Failed to fetch page HEAD: ${headResponse.status}`);
+    return { failedStatus: headResponse.status };
   }
 
   // verify content type is html
@@ -173,7 +227,7 @@ export async function scrape(
   const etag = parseETag(headResponse.headers.get("etag"));
   if (etag && etag === meta.priorEtag) {
     console.log("ETag matches, no update needed");
-    return null;
+    return NoUpdateNeeded;
   }
 
   // check last modified
@@ -182,7 +236,7 @@ export async function scrape(
     const lastModifiedDate = new Date(lastModified);
     if (meta.lastModified && lastModifiedDate <= meta.lastModified) {
       console.log("Last modified date matches, no update needed");
-      return null;
+      return NoUpdateNeeded;
     }
   }
 
@@ -192,12 +246,17 @@ export async function scrape(
     method: "GET",
     redirect: "follow",
     ...sharedHeaders,
+  }).catch((err) => {
+    // this can happen, for instance, if the SSL cert is bad
+    console.error("Error in HEAD request:", err);
+    return new Response(null, { status: 0 });
   });
   if (!fullResponse.ok) {
     throw new Error(`Failed to fetch page: ${fullResponse.status}`);
   }
   if (fullResponse.status !== 200) {
-    throw new Error(`Failed to fetch page HEAD: ${fullResponse.status}`);
+    console.warn(`Failed to fetch page: ${fullResponse.status}`);
+    return { failedStatus: fullResponse.status };
   }
 
   const newEtag = parseETag(fullResponse.headers.get("etag"));
@@ -219,24 +278,16 @@ export async function scrape(
   const description = findDescription(document);
   const content = findContent(document);
   const hrefs = findHrefs(document, page);
-  const canonical = htmlparser2.DomUtils.findOne(
-    (element) =>
-      element.name === "link" &&
-      element.attribs.rel === "canonical" &&
-      !!element.attribs.href.trim(),
-    document
-  )?.attribs.href;
+  const canonical =
+    htmlparser2.DomUtils.findOne(
+      (element) =>
+        element.name === "link" &&
+        element.attribs.rel === "canonical" &&
+        !!element.attribs.href.trim(),
+      document
+    )?.attribs.href || page.toString();
 
   // TODO: no scrape before based on cache control
-
-  await sql<never>`
-    UPDATE scraped_urls
-    SET
-      etag = ${newEtag},
-      last_check_time = NOW(),
-      last_scrape_status = ${fullResponse.status}
-    WHERE id = ${meta.id};
-  `;
 
   return {
     etag: newEtag,
@@ -246,6 +297,7 @@ export async function scrape(
     content,
     hrefs,
     canonical,
+    status: fullResponse.status,
   };
 }
 
@@ -257,7 +309,7 @@ const client = new OpenSearchClient({
   },
 });
 
-async function job(item: {
+async function scrapeAndStore(item: {
   id: ScrapedUrl["id"];
   path: ScrapedUrl["path"];
   etag: ScrapedUrl["etag"];
@@ -273,8 +325,59 @@ async function job(item: {
     priorEtag: item.etag,
     lastModified: item.last_modified,
   });
-  if (!result || !result.canonical) {
+
+  // Update scrape status
+  if (result == NoUpdateNeeded) {
+    console.log("No update needed for page:", url.toString());
+    await sql<never>`
+    UPDATE scraped_urls
+    SET
+      last_check_time = NOW(),
+    WHERE id = ${item.id};
+  `;
     return;
+  }
+  if (isFailedStatus(result)) {
+    await sql<never>`
+    UPDATE scraped_urls
+    SET
+      last_check_time = NOW(),
+      last_scrape_status = ${result.failedStatus}
+    WHERE id = ${item.id};
+  `;
+    return;
+  }
+  await sql<never>`
+    UPDATE scraped_urls
+    SET
+      etag = ${result.etag},
+      last_check_time = NOW(),
+      last_scrape_status = ${result.status}
+    WHERE id = ${item.id};
+  `;
+
+  // add hrefs to the scraped_urls table in bulk
+  for (const href of result.hrefs) {
+    const urlPrefixMatcher = href.toString().slice(href.protocol.length + 2);
+    try {
+      const sqlResult = await sql`
+      INSERT INTO scraped_urls (url_base_id, path)
+        SELECT id, ${href.pathname}
+        FROM url_bases
+        WHERE ${urlPrefixMatcher} LIKE url_prefix || '%'
+        ORDER BY LENGTH(url_prefix) DESC
+        LIMIT 1
+      ON CONFLICT DO NOTHING;
+    `;
+      if (sqlResult.count === 0) {
+        // no rows were inserted, this means the URL is already in the table or not allowed
+        console.log("URL already in table or not allowed:", href.toString());
+      } else {
+        console.log("Queued URL:", href.toString(), sqlResult);
+      }
+    } catch (err) {
+      console.error("Error inserting href:", href.toString(), err);
+    }
   }
 
   const bulkResponse = await client.bulk({
@@ -328,7 +431,7 @@ async function job(item: {
   console.log("Indexed page content:", result.canonical);
 }
 
-async function main() {
+async function lockAndProcess() {
   // atomically select and lock a random URL that hasn't been scraped yet
 
   const unchecked = await sql<
@@ -365,9 +468,9 @@ async function main() {
   }
 
   try {
-    await job(unchecked[0]);
+    await scrapeAndStore(unchecked[0]);
   } catch (err) {
-    console.error("Error in job:", err);
+    console.error("Error in scrapeAndStore:", err);
   } finally {
     // unlock
     await sql<never>`
@@ -375,6 +478,24 @@ async function main() {
         SET lock = NULL
         WHERE id = ${unchecked[0].id};
         `;
+  }
+}
+
+let keepRunning = true;
+process.on("SIGINT", () => {
+  console.log("SIGINT received, shutting down after next scrape...");
+  keepRunning = false;
+});
+
+async function main() {
+  while (keepRunning) {
+    try {
+      await lockAndProcess();
+    } catch (err) {
+      console.error("Error in main loop:", err);
+    }
+    // wait 1 second before trying next job
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 }
 
