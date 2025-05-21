@@ -157,4 +157,4 @@ Content-Type: application/json
 }
 
 ###
-GET {{OPENSEARCH_BASE_URL}}/{{index_id}}/_doc/998e2898-281a-5e00-82e1-c505603e792b
+GET {{OPENSEARCH_BASE_URL}}/_nodes/stats/indices/search

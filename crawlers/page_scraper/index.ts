@@ -19,14 +19,14 @@ const config = {
 
 const version = "dev";
 const sharedHeaders = {
-  "User-Agent": `ApexskierScraper/${version}`,
+  "User-Agent": `ApexskierScraper/${version} (pid:${process.pid})`,
 };
 
 function parseRobotsValue(value: string | null): {
   noindex: boolean;
   nofollow: boolean;
 } {
-  // TODO: support bot names, may need to differentiate between header and meta tag values
+  // TODO: support bot names? may need to differentiate between header and meta tag values
   if (!value) {
     return { noindex: false, nofollow: false };
   }
@@ -224,9 +224,6 @@ export async function scrape(
     console.error("Error in HEAD request:", err);
     return new Response(null, { status: 0 });
   });
-  if (!headResponse.ok) {
-    throw new Error(`Failed to fetch page: ${headResponse.status}`);
-  }
   if (headResponse.status !== 200) {
     console.warn(`Failed to fetch page HEAD: ${headResponse.status}`);
     return { failedStatus: headResponse.status };
@@ -248,7 +245,13 @@ export async function scrape(
   // verify content type is html
   const contentType = headResponse.headers.get("content-type");
   if (!contentType || !contentType.startsWith("text/html")) {
-    throw new Error(`Invalid content type: ${contentType}`);
+    // we only index html content
+    console.log(
+      "Content type is not HTML, skipping:",
+      page.toString(),
+      contentType
+    );
+    return NoUpdateNeeded;
   }
 
   // check etag
@@ -279,9 +282,6 @@ export async function scrape(
     console.error("Error in HEAD request:", err);
     return new Response(null, { status: 0 });
   });
-  if (!fullResponse.ok) {
-    throw new Error(`Failed to fetch page: ${fullResponse.status}`);
-  }
   if (fullResponse.status !== 200) {
     console.warn(`Failed to fetch page: ${fullResponse.status}`);
     return { failedStatus: fullResponse.status };
@@ -331,7 +331,9 @@ export async function scrape(
   // don't follow links if nofollow is set
   const hrefs = nofollow ? [] : findHrefs(document, page);
 
-  // TODO: no scrape before based on cache control
+  // TODO: set no scrape before based on cache control
+  // TODO: handle backoff for 429 errors
+  // TODO: improve db status marking? e.g. recoverable errors, permanent blocks, etc
 
   return {
     etag: newEtag,
@@ -368,6 +370,16 @@ async function scrapeAndStore(item: {
     id: item.id,
     priorEtag: item.etag,
     lastModified: item.last_modified,
+  }).catch<ReturnType<typeof scrape>>(async (err) => {
+    console.error("Error in scrape:", err, url.toString());
+    await sql<never>`
+    UPDATE scraped_urls
+    SET
+      last_check_time = NOW(),
+      last_scrape_status = 0
+    WHERE id = ${item.id};
+    `;
+    return NoUpdateNeeded;
   });
 
   // Update scrape status
@@ -376,7 +388,7 @@ async function scrapeAndStore(item: {
     await sql<never>`
     UPDATE scraped_urls
     SET
-      last_check_time = NOW(),
+      last_check_time = NOW()
     WHERE id = ${item.id};
   `;
     return;
@@ -401,6 +413,7 @@ async function scrapeAndStore(item: {
   `;
 
   // add hrefs to the scraped_urls table in bulk
+    // TODO: merge into one query, dynamically generating the insert statement
   for (const href of result.hrefs) {
     const urlPrefixMatcher = href.toString().slice(href.protocol.length + 2);
     try {
@@ -417,7 +430,7 @@ async function scrapeAndStore(item: {
         // no rows were inserted, this means the URL is already in the table or not allowed
         console.log("URL already in table or not allowed:", href.toString());
       } else {
-        console.log("Queued URL:", href.toString(), sqlResult);
+        console.log("Queued URL:", href.toString());
       }
     } catch (err) {
       console.error("Error inserting href:", href.toString(), err);
@@ -538,8 +551,6 @@ async function main() {
     } catch (err) {
       console.error("Error in main loop:", err);
     }
-    // wait 1 second before trying next job
-    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 }
 

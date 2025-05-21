@@ -1,5 +1,4 @@
 import express from "express";
-import postgres from "postgres";
 import ejs from "ejs";
 import { Client as OpenSearchClient } from "@opensearch-project/opensearch";
 import fs from "fs";
@@ -100,12 +99,16 @@ const statsTemplate = ejs.compile(statsTemplateContent);
 app.get("/stats", async (req, res) => {
   const after = (req.query.after as string | null) || null;
 
-  const results = await sql<ReadonlyArray<{
-    url_base_id: UrlBase["id"];
-    url_prefix: UrlBase["url_prefix"];
-    scraped_url_count: number;
-    checked_url_count: number;
-  }>>`
+  const [results, [totalTrackedResult, totalScrapedResult]] = await Promise.all(
+    [
+      sql<
+        ReadonlyArray<{
+          url_base_id: UrlBase["id"];
+          url_prefix: UrlBase["url_prefix"];
+          scraped_url_count: number;
+          checked_url_count: number;
+        }>
+      >`
       SELECT
         url_bases.id AS url_base_id,
         url_bases.url_prefix,
@@ -122,9 +125,25 @@ app.get("/stats", async (req, res) => {
       ORDER BY
         url_bases.id
       LIMIT 20;
-    `;
+    `,
+      sql`
+    SELECT COUNT(*) AS count FROM scraped_urls;
+    SELECT COUNT(*) AS count FROM scraped_urls WHERE last_check_time IS NOT NULL;`.simple(),
+    ]
+  );
 
-  const statsHtml = statsTemplate({ after: after != '0', results });
+  const total_tracked = parseInt(totalTrackedResult[0].count, 10);
+  const total_scraped = parseInt(totalScrapedResult[0].count, 10);
+
+  const statsHtml = statsTemplate({
+    after: after != "0",
+    results,
+    total_tracked,
+    total_scraped,
+    human_percentage: new Intl.NumberFormat(req.acceptsLanguages(), {
+      style: "percent",
+    }).format(total_scraped / total_tracked),
+  });
   res.send(statsHtml);
 });
 

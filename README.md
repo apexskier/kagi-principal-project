@@ -77,6 +77,42 @@ What data are we storing per indexed page?
 
 **Optimizing rankings comes later. Need the project running to be able to test optimizations**
 
-
 HTML parsing libraries 
 - https://github.com/fb55/htmlparser2 - forgiving (people don't follow standards), popular, fast.
+
+## 2025-05-21
+
+16:00 notes
+
+I've got something that's working, but not within the desired parameters.
+
+First, index latency is not within 50ms. I don't yet know if this is because I'm not optimizing OpenSearch right (I am running locally), or if it's a fundamental issue with OpenSearch. Given DB/indexing isn't my background, I decided to use an out-of-the box open source option, but in the real world this might require a lot more attention.
+
+User interface is up, it's simple and static and not pretty, but it works. Definitely fulfills the requirements.
+
+Crawler is working, and respects some good standards and conventions but not every one I'd like.
+
+MDN has a lot of pages since they have so many languages. Might want to deprioritize other langauges. I'm randomly selecting the next page to scrape, but this inherently amplifies big sites, and the problem grows since it biases toward following links to those big sites. IDEA: I could randomly select an url prefix, then randomly select a path from that.
+
+given this is in the prompt
+> 4. Explain how you optimized ranking to achieve high relevancy in the search results.
+I'm probably expected to optimize rankings. I'm not doing this at all yet, except for trying to query the body and choosing a solid base of opensearch.
+
+TODO: (for sure)
+- documentation for dev environment
+- documentation for bootstrapping the project
+- documentation for architecture
+- documentation for choices made
+- deployment to a real environment
+- rescraping of outdated content (currently only scraping new urls)
+
+TODO: (hopefully)
+- improve latency
+- improve result relevancy
+- tests
+- linting and formatting
+- CI/build automation
+- monitoring/observability
+    - structured logs
+    - metrics
+    - bug reporting
