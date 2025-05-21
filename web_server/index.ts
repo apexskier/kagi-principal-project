@@ -59,7 +59,7 @@ app.get("/search", async (req, res) => {
           },
         },
       },
-      docvalue_fields: ["canonical_url", "last_scraped", "last_updated"],
+      docvalue_fields: ["canonical_url", "last_scraped"],
       fields: ["title", "description"],
       _source: false,
       size: 10,

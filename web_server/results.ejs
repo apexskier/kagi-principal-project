@@ -84,6 +84,9 @@
       li.result:hover {
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
       }
+      li.result *:last-child {
+        margin-bottom: 0;
+      }
       .result-title {
         font-size: 1.25rem;
         font-weight: 600;
@@ -168,29 +171,23 @@
               <%= result.fields.canonical_url %>
             </a>
           </span>
+          <% if (result.fields.description) { %>
           <p class="result-description"><%= result.fields.description %></p>
-          <details>
-            <summary>Matches</summary>
-            <ul>
-              <% result.highlight.content_cleaned.forEach((match) => { %>
-              <li>
-                  <%# highlights are html stripped, then only have strong tags added, and are safe to render %>
-                  …<%- match %>…
-              </li>
-              <% }) %>
-          </details>
-          <dl class="result-meta">
-            <dt>Scraped at</dt>
-            <dd class="result-date">
-              <%= new Date(result.fields.last_scraped).toLocaleString() %> <%# TODO: timezone %>
-            </dd>
-            <% if (result.fields.last_updated) { %>
-            <dt>updated</dt>
-            <dd class="result-date">
-              <%= new Date(result.fields.last_updated).toLocaleString() %> <%# TODO: timezone %>
-            </dd>
-            <% } %>
-          </dl>
+          <% } %> <% result.highlight.content_cleaned.forEach((match) => { %>
+          <blockquote>
+            <%# highlights are html stripped, then only have strong tags added,
+            and are safe to render %> …<%- match %>…
+          </blockquote>
+          <% }) %>
+          <p>
+            <small
+              >Indexed at
+              <time datetime="<%= result.fields.last_scraped %>"
+                ><%= new Date(result.fields.last_scraped).toLocaleString() %>
+                <%# TODO: timezone %></time
+              ></small
+            >
+          </p>
         </li>
         <% }) %>
       </ul>
