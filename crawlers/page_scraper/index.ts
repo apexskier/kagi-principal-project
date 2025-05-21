@@ -5,6 +5,8 @@ import type { Document } from "domhandler";
 import { Client as OpenSearchClient } from "@opensearch-project/opensearch";
 import { v5 as uuid } from "uuid";
 import { ScrapedUrl, UrlBase } from "../../db";
+import { url } from "inspector";
+import { assert } from "console";
 
 // use v5 uuid to generate a unique id for the document based on the URL
 // can't use urls directly because of size constraints with the opensearch bulk API
@@ -413,7 +415,7 @@ async function scrapeAndStore(item: {
   `;
 
   // add hrefs to the scraped_urls table in bulk
-    // TODO: merge into one query, dynamically generating the insert statement
+  // TODO: merge into one query, dynamically generating the insert statement
   for (const href of result.hrefs) {
     const urlPrefixMatcher = href.toString().slice(href.protocol.length + 2);
     try {
@@ -488,18 +490,33 @@ async function scrapeAndStore(item: {
   console.log("Indexed page content:", result.canonical);
 }
 
-async function lockAndProcess() {
-  // atomically select and lock a random URL that hasn't been scraped yet
+enum SelectionStrategy {
+  Random = "random",
+  // RandomByUrlBase reduces the bias towards large sites with many URLs
+  // and allows us to scrape a more diverse set of sites
+  RandomByUrlBase = "random_by_url_base",
+}
 
-  const unchecked = await sql<
-    ReadonlyArray<{
-      id: ScrapedUrl["id"];
-      path: ScrapedUrl["path"];
-      etag: ScrapedUrl["etag"];
-      last_modified: ScrapedUrl["last_modified"];
-      url_prefix: UrlBase["url_prefix"];
-    }>
-  >`
+async function selectAndLock(strategy: SelectionStrategy): Promise<
+  ReadonlyArray<{
+    id: ScrapedUrl["id"];
+    path: ScrapedUrl["path"];
+    etag: ScrapedUrl["etag"];
+    last_modified: ScrapedUrl["last_modified"];
+    url_prefix: UrlBase["url_prefix"];
+  }>
+> {
+  switch (strategy) {
+    case SelectionStrategy.Random:
+      return sql<
+        ReadonlyArray<{
+          id: ScrapedUrl["id"];
+          path: ScrapedUrl["path"];
+          etag: ScrapedUrl["etag"];
+          last_modified: ScrapedUrl["last_modified"];
+          url_prefix: UrlBase["url_prefix"];
+        }>
+      >`
       WITH locked AS (
         UPDATE scraped_urls
         SET lock = ROW(${process.pid}::text, NOW())
@@ -518,6 +535,59 @@ async function lockAndProcess() {
       FROM locked
       JOIN url_bases ON locked.url_base_id = url_bases.id;
       `;
+    case SelectionStrategy.RandomByUrlBase: {
+      // First, select a random url_base_id that has unchecked URLs
+      const [{ id } = {}] = await sql<
+        ReadonlyArray<{ id: UrlBase["id"] }>
+      >`
+      SELECT id
+      FROM url_bases
+      ORDER BY RANDOM()
+      LIMIT 1
+      `;
+      if (!id) {
+        throw new Error("No URL base ID found");
+      }
+
+      // there's a chance we'll have scraped all URLs for this base, in which case this won't do anything and we'll try again
+
+      // Lock and select a random scraped_url for that url_base_id
+      return sql<
+        ReadonlyArray<{
+          id: ScrapedUrl["id"];
+          path: ScrapedUrl["path"];
+          etag: ScrapedUrl["etag"];
+          last_modified: ScrapedUrl["last_modified"];
+          url_prefix: UrlBase["url_prefix"];
+        }>
+      >`
+      WITH locked AS (
+        UPDATE scraped_urls
+        SET lock = ROW(${process.pid}::text, NOW())
+        WHERE id = (
+          SELECT id FROM scraped_urls
+          WHERE
+            url_base_id = ${id}
+            AND last_check_time IS NULL
+            AND lock IS NULL
+          ORDER BY RANDOM()
+          LIMIT 1
+          FOR UPDATE SKIP LOCKED
+        )
+        RETURNING id, url_base_id, path, etag, last_modified
+      )
+      SELECT locked.id, locked.path, locked.etag, locked.last_modified, url_bases.url_prefix
+      FROM locked
+      JOIN url_bases ON locked.url_base_id = url_bases.id;
+    `;
+    }
+    default:
+      throw new Error(`Unknown selection strategy: ${strategy}`);
+  }
+}
+
+async function lockAndProcess() {
+  const unchecked = await selectAndLock(SelectionStrategy.RandomByUrlBase);
 
   if (unchecked.length === 0) {
     console.log("No URLs to check");
