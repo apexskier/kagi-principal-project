@@ -2,7 +2,6 @@
   "extends": "@tsconfig/node22/tsconfig.json",
   "compilerOptions": {
     // "composite": true,                                /* Enable constraints that allow a TypeScript project to be used with project references. */
-    "outDir": "dist",
 
     "forceConsistentCasingInFileNames": true /* Ensure that casing is correct in imports. */
   }

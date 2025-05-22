@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "./bundle/web_server/index.js",
   "scripts": {
-    "build": "tsc --build && ./bundle.sh",
+    "build": "tsc --build && sh -e bundle.sh",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Cameron Little <cameron@camlittle.com>",
@@ -13,7 +13,11 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@opensearch-project/opensearch": "^3.5.1",
+    "ejs": "^3.1.10",
+    "express": "^5.1.0",
     "pino": "^9.7.0",
-    "pino-http": "^10.4.0"
+    "pino-http": "^10.4.0",
+    "postgres": "^3.4.7"
   }
 }

@@ -1,6 +1,9 @@
 {
   "extends": "../tsconfig-base.json",
   "references": [{ "path": "../db" }],
+  "compilerOptions": {
+    "outDir": "./dist",
+  },
   "include": ["../*.ts", "./**/*.ts"],
   "exclude": ["../*.test.ts", "./**/*.test.ts"]
 }
