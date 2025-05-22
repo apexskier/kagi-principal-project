@@ -2,5 +2,5 @@ node_modules/
 .vscode/settings.json
 dist/
 bundle/
-helm/secrets/
+secrets/
 bulk_data/

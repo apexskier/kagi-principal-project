@@ -28,11 +28,7 @@ app.get("/", (req, res) => {
 });
 
 const openSearchClient = new OpenSearchClient({
-  node: process.env.OPENSEARCH_HOST,
-  auth: {
-    username: process.env.OPENSEARCH_USERNAME!,
-    password: process.env.OPENSEARCH_INITIAL_ADMIN_PASSWORD!,
-  },
+  node: process.env.OPENSEARCH_HOST
 });
 
 const resultsTemplatePath = path.join(__dirname, "results.ejs");
@@ -145,12 +141,18 @@ app.get("/stats", async (req, res) => {
   const total_tracked = parseInt(totalTrackedResult[0].count, 10);
   const total_scraped = parseInt(totalScrapedResult[0].count, 10);
 
+  let lang = "en-US";
+  const langs = req.acceptsLanguages();
+  if (langs.length > 0 && langs[0] !== "*") {
+    lang = langs[0];
+  }
+
   const statsHtml = statsTemplate({
     after: after != "0",
     results,
     total_tracked,
     total_scraped,
-    human_percentage: new Intl.NumberFormat(req.acceptsLanguages(), {
+    human_percentage: new Intl.NumberFormat(lang, {
       style: "percent",
     }).format(total_scraped / total_tracked),
   });
