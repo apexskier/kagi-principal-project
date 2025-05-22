@@ -1,0 +1,55 @@
+name: Docker build/publish
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log into github registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build web_server image
+        run: |
+          docker build -t web_server \
+            --build-arg="VERSION=${{ github.sha }}" \
+            --build-arg="WORKSPACE=web_server" \
+            --build-arg="WORKSPACE_DIR=web_server" \
+            --label "runnumber=${GITHUB_RUN_ID}" \
+            -f Dockerfile \
+            .
+
+      - name: Push web_server image to github registry
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository }}/web_server
+          docker tag web $IMAGE_ID:latest
+          docker tag web $IMAGE_ID:${{ github.sha }}
+          docker push $IMAGE_ID:latest
+          docker push $IMAGE_ID:${{ github.sha }}
+
+      - name: Build page_scraper image
+        run: |
+          docker build -t page_scraper \
+            --build-arg="VERSION=${{ github.sha }}" \
+            --build-arg="WORKSPACE=page_scraper" \
+            --build-arg="WORKSPACE_DIR=crawlers/page_scraper" \
+            --label "runnumber=${GITHUB_RUN_ID}" \
+            -f Dockerfile \
+            .
+
+      - name: Push page_scraper image to github registry
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository }}/page_scraper
+          docker tag web $IMAGE_ID:latest
+          docker tag web $IMAGE_ID:${{ github.sha }}
+          docker push $IMAGE_ID:latest
+          docker push $IMAGE_ID:${{ github.sha }}
