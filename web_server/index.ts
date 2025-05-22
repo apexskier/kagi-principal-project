@@ -1,9 +1,21 @@
+import fs from "fs";
+import path from "path";
 import express from "express";
 import ejs from "ejs";
 import { Client as OpenSearchClient } from "@opensearch-project/opensearch";
-import fs from "fs";
-import path from "path";
+import pino from "pino-http";
 import sql, { UrlBase } from "../db";
+
+const logger = pino({
+  serializers: {
+    req: ({ method, url, query, parameters }) => ({
+      method,
+      url,
+      query,
+      parameters,
+    }),
+  },
+});
 
 const config = {
   OPENSEARCH_HOST: "http://localhost:9200",
@@ -12,7 +24,8 @@ const config = {
 };
 
 const app = express();
-app.set("view engine", "ejs");
+app.use(logger);
+
 const port = 3000;
 
 const indexHtmlPath = path.join(__dirname, "index.html");
@@ -157,6 +170,9 @@ app.get("/stats", async (req, res) => {
   res.send(statsHtml);
 });
 
-app.listen(port, () => {
-  console.log(`Server is running at http://localhost:${port}`);
+app.listen(port, (err) => {
+  if (err) {
+    throw err;
+  }
+  logger.logger.info("Server is listening on port %d", port);
 });

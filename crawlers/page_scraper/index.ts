@@ -1,10 +1,9 @@
 import * as htmlparser2 from "htmlparser2";
-import sql from "../../db";
-import render from "dom-serializer";
+import domSerializer from "dom-serializer";
 import type { Document } from "domhandler";
 import { Client as OpenSearchClient } from "@opensearch-project/opensearch";
 import { v5 as uuid } from "uuid";
-import { ScrapedUrl, UrlBase } from "../../db";
+import sql, { ScrapedUrl, UrlBase } from "../../db";
 
 // use v5 uuid to generate a unique id for the document based on the URL
 // can't use urls directly because of size constraints with the opensearch bulk API
@@ -107,7 +106,7 @@ function findContent(document: Document): string | null {
   // The specification says there should be only one non-hidden <main> tag
   // Pages that have more than one will be implicitly penalized
   if (mainNode) {
-    return render(mainNode);
+    return domSerializer(mainNode);
   }
 
   // fall back to role="main"
@@ -116,7 +115,7 @@ function findContent(document: Document): string | null {
     document,
   );
   if (roleMainNode) {
-    return render(roleMainNode);
+    return domSerializer(roleMainNode);
   }
 
   // fall back to <body> tag
@@ -125,7 +124,7 @@ function findContent(document: Document): string | null {
     document,
   );
   if (bodyNode) {
-    return render(bodyNode);
+    return domSerializer(bodyNode);
   }
 
   return null;
