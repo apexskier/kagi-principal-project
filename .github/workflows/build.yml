@@ -31,8 +31,8 @@ jobs:
       - name: Push web_server image to github registry
         run: |
           IMAGE_ID=ghcr.io/${{ github.repository }}/web_server
-          docker tag web $IMAGE_ID:latest
-          docker tag web $IMAGE_ID:${{ github.sha }}
+          docker tag web_server $IMAGE_ID:latest
+          docker tag web_server $IMAGE_ID:${{ github.sha }}
           docker push $IMAGE_ID:latest
           docker push $IMAGE_ID:${{ github.sha }}
 
@@ -49,7 +49,7 @@ jobs:
       - name: Push page_scraper image to github registry
         run: |
           IMAGE_ID=ghcr.io/${{ github.repository }}/page_scraper
-          docker tag web $IMAGE_ID:latest
-          docker tag web $IMAGE_ID:${{ github.sha }}
+          docker tag page_scraper $IMAGE_ID:latest
+          docker tag page_scraper $IMAGE_ID:${{ github.sha }}
           docker push $IMAGE_ID:latest
           docker push $IMAGE_ID:${{ github.sha }}
