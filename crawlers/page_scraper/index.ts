@@ -5,8 +5,6 @@ import type { Document } from "domhandler";
 import { Client as OpenSearchClient } from "@opensearch-project/opensearch";
 import { v5 as uuid } from "uuid";
 import { ScrapedUrl, UrlBase } from "../../db";
-import { url } from "inspector";
-import { assert } from "console";
 
 // use v5 uuid to generate a unique id for the document based on the URL
 // can't use urls directly because of size constraints with the opensearch bulk API
@@ -43,7 +41,7 @@ function findTitle(document: Document): string | null {
   // first look for a <title> tag
   const titleNode = htmlparser2.DomUtils.findOne(
     (element) => element.name === "title",
-    document
+    document,
   );
   if (titleNode) {
     const title = htmlparser2.DomUtils.textContent(titleNode).trim();
@@ -55,7 +53,7 @@ function findTitle(document: Document): string | null {
   // if no <title> tag, look for a <meta name="title"> tag
   const metaTitleNode = htmlparser2.DomUtils.findOne(
     (element) => element.name === "meta" && element.attribs.name === "title",
-    document
+    document,
   );
   if (metaTitleNode) {
     const title = metaTitleNode.attribs.content.trim();
@@ -74,7 +72,7 @@ function findDescription(document: Document): string | null {
   const metaDescriptionNode = htmlparser2.DomUtils.findOne(
     (element) =>
       element.name === "meta" && element.attribs.name === "description",
-    document
+    document,
   );
   if (metaDescriptionNode) {
     const description = metaDescriptionNode.attribs.content.trim();
@@ -115,7 +113,7 @@ function findContent(document: Document): string | null {
   // fall back to role="main"
   const roleMainNode = htmlparser2.DomUtils.findOne(
     (element) => element.attribs.role === "main",
-    document
+    document,
   );
   if (roleMainNode) {
     return render(roleMainNode);
@@ -124,7 +122,7 @@ function findContent(document: Document): string | null {
   // fall back to <body> tag
   const bodyNode = htmlparser2.DomUtils.findOne(
     (element) => element.name === "body",
-    document
+    document,
   );
   if (bodyNode) {
     return render(bodyNode);
@@ -141,9 +139,9 @@ function findHrefs(document: Document, base: URL): ReadonlyArray<URL> {
           element.name === "a" &&
           !!element.attribs.href &&
           !!element.attribs.href.trim(),
-        document
-      ).map((element) => element.attribs.href.trim())
-    )
+        document,
+      ).map((element) => element.attribs.href.trim()),
+    ),
   )
     .map((href) => new URL(href, base))
     .filter((href) => {
@@ -189,7 +187,7 @@ function isFailedStatus(
         canonical: string;
         status: 200;
       }
-    | { failedStatus: number }
+    | { failedStatus: number },
 ): x is { failedStatus: number } {
   return (x as { failedStatus: number }).failedStatus !== undefined;
 }
@@ -200,7 +198,7 @@ export async function scrape(
     id: number;
     priorEtag: string | null;
     lastModified: Date | null;
-  }
+  },
 ): Promise<
   | {
       etag: string | null;
@@ -239,7 +237,7 @@ export async function scrape(
   if (noindex) {
     console.warn(
       "noindex header prevents indexing, skipping:",
-      page.toString()
+      page.toString(),
     );
     return NoUpdateNeeded;
   }
@@ -251,7 +249,7 @@ export async function scrape(
     console.log(
       "Content type is not HTML, skipping:",
       page.toString(),
-      contentType
+      contentType,
     );
     return NoUpdateNeeded;
   }
@@ -313,19 +311,19 @@ export async function scrape(
         element.name === "link" &&
         element.attribs.rel === "canonical" &&
         !!element.attribs.href.trim(),
-      document
+      document,
     )?.attribs.href || page.toString();
   ({ noindex, nofollow } = parseRobotsValue(
     htmlparser2.DomUtils.findOne(
       (element) => element.name === "meta" && element.attribs.name === "robots",
-      document
-    )?.attribs.content ?? null
+      document,
+    )?.attribs.content ?? null,
   ));
 
   if (noindex) {
     console.warn(
       "noindex meta tag prevents indexing, skipping:",
-      page.toString()
+      page.toString(),
     );
     return NoUpdateNeeded;
   }
@@ -537,19 +535,18 @@ async function selectAndLock(strategy: SelectionStrategy): Promise<
       `;
     case SelectionStrategy.RandomByUrlBase: {
       // First, select a random url_base_id that has unchecked URLs
-      const [{ id } = {}] = await sql<
-        ReadonlyArray<{ id: UrlBase["id"] }>
-      >`
+      const [{ id } = {}] = await sql<ReadonlyArray<{ id: UrlBase["id"] }>>`
       SELECT id
       FROM url_bases
+      WHERE EXISTS (
+        SELECT 1 FROM scraped_urls WHERE scraped_urls.url_base_id = url_bases.id
+      )
       ORDER BY RANDOM()
       LIMIT 1
       `;
       if (!id) {
         throw new Error("No URL base ID found");
       }
-
-      // there's a chance we'll have scraped all URLs for this base, in which case this won't do anything and we'll try again
 
       // Lock and select a random scraped_url for that url_base_id
       return sql<

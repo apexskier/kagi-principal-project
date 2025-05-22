@@ -5,8 +5,6 @@ import fs from "fs";
 import path from "path";
 import sql, { UrlBase } from "../db";
 
-const namespace = "1f0365d8-2a44-6ef0-a5ff-7804559ef9c4";
-
 const config = {
   OPENSEARCH_HOST: "http://localhost:9200",
   OPENSEARCH_INDEX: "page_content_2",
@@ -41,7 +39,7 @@ app.get("/search", async (req, res) => {
     res
       .status(400)
       .send(
-        "Bad Request: 'q' query parameter is required and must be a string."
+        "Bad Request: 'q' query parameter is required and must be a string.",
       );
     return;
   }
@@ -90,12 +88,12 @@ app.get("/search", async (req, res) => {
       id: hit._id,
       highlight: hit.highlight,
       fields: Object.fromEntries(
-        Object.entries(hit.fields as {}).map(([key, value]) => {
+        Object.entries(hit.fields as object).map(([key, value]) => {
           if (Array.isArray(value)) {
             return [key, value[0]];
           }
           return [key, value];
-        })
+        }),
       ),
     })),
   };
@@ -141,7 +139,7 @@ app.get("/stats", async (req, res) => {
       sql`
     SELECT COUNT(*) AS count FROM scraped_urls;
     SELECT COUNT(*) AS count FROM scraped_urls WHERE last_check_time IS NOT NULL;`.simple(),
-    ]
+    ],
   );
 
   const total_tracked = parseInt(totalTrackedResult[0].count, 10);

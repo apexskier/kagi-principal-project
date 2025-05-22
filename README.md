@@ -10,6 +10,7 @@ not an expert in DBs, and this part seems very important.
 Scale with multiple crawlers running in parallel, need locking (and scalable locking) (locking can probably be non-guaranteed since we'll rerun to update results, just need to ensure writes are locked) idempotency?. Lock by domain, page...?
 
 follow standards, can't hand-build scrapers for each site
+
 - Respect robots.txt
 - noindex meta tag or header
 - Use sitemaps (crawl what the site wants me to crawl, not link traversal).
@@ -26,19 +27,19 @@ Architecture
 
 - Central DB
 - Crawlers
-    - Domain parser, 
-    - URL sniffer - finds pages to look at content in. Given entrypoint (url), looks at robots.txt, sitemap.xml, etc. Deduplicates urls. Outputs additional pages to url sniff. Outputs pages to scrape. Outputs metadata (last crawled, what other things are linked to, etc, outputs information about scrapability of urls)
-    - Page scraper - given a page (url), scrapes contents and adds to search indices. Outputs search indice vectors, outputs page metadata (human readable for UI, stats), outputs additional pages to crawl via link detection
+  - Domain parser,
+  - URL sniffer - finds pages to look at content in. Given entrypoint (url), looks at robots.txt, sitemap.xml, etc. Deduplicates urls. Outputs additional pages to url sniff. Outputs pages to scrape. Outputs metadata (last crawled, what other things are linked to, etc, outputs information about scrapability of urls)
+  - Page scraper - given a page (url), scrapes contents and adds to search indices. Outputs search indice vectors, outputs page metadata (human readable for UI, stats), outputs additional pages to crawl via link detection
 - API
-    - search - given query, search DB and aggregate results, returns results and time to search
-    - domain stats
-    - page stats
-    - admin (needs auth)
-        - trigger recrawl
-        - data resets
-- UI 
-    - html search form, returns results. Help, error messages, query syntax.
-    - https://developer.mozilla.org/en-US/docs/Web/XML/Guides/OpenSearch
+  - search - given query, search DB and aggregate results, returns results and time to search
+  - domain stats
+  - page stats
+  - admin (needs auth)
+    - trigger recrawl
+    - data resets
+- UI
+  - html search form, returns results. Help, error messages, query syntax.
+  - https://developer.mozilla.org/en-US/docs/Web/XML/Guides/OpenSearch
 - Orchestration - trigger crawlers, ensure site is up
 
 Security
@@ -63,21 +64,21 @@ Documentation is human facing, html is human facing
 Using OpenSearch for search indexing. Flexible (can support many types of searching, including pre-trained vector embedding), full featured, appropriate license, means I don't have to build out myself. Also has ingest pipelines to handle stop word cleaning, etc. Indicing and optimizing is a huge topic and I want to get something up sooner rather than later.
 
 Using Postgres for managing crawling. Postgres is robust, I'm somewhat familiar.
+
 - queuing crawlers
 - crawler statistics
 
 What data are we storing per indexed page?
+
 - title
 - date last updated
 - date indexed/crawled
 - indexed content
 - url (including domain/path/etc)
-- 
+- **Optimizing rankings comes later. Need the project running to be able to test optimizations**
 
+HTML parsing libraries
 
-**Optimizing rankings comes later. Need the project running to be able to test optimizations**
-
-HTML parsing libraries 
 - https://github.com/fb55/htmlparser2 - forgiving (people don't follow standards), popular, fast.
 
 ## 2025-05-21
@@ -95,10 +96,12 @@ Crawler is working, and respects some good standards and conventions but not eve
 MDN has a lot of pages since they have so many languages. Might want to deprioritize other langauges. I'm randomly selecting the next page to scrape, but this inherently amplifies big sites, and the problem grows since it biases toward following links to those big sites. IDEA: I could randomly select an url prefix, then randomly select a path from that.
 
 given this is in the prompt
+
 > 4. Explain how you optimized ranking to achieve high relevancy in the search results.
-I'm probably expected to optimize rankings. I'm not doing this at all yet, except for trying to query the body and choosing a solid base of opensearch.
+>    I'm probably expected to optimize rankings. I'm not doing this at all yet, except for trying to query the body and choosing a solid base of opensearch.
 
 TODO: (for sure)
+
 - documentation for dev environment
 - documentation for bootstrapping the project
 - documentation for architecture
@@ -107,12 +110,13 @@ TODO: (for sure)
 - rescraping of outdated content (currently only scraping new urls)
 
 TODO: (hopefully)
+
 - improve latency
 - improve result relevancy
 - tests
 - linting and formatting
 - CI/build automation
 - monitoring/observability
-    - structured logs
-    - metrics
-    - bug reporting
+  - structured logs
+  - metrics
+  - bug reporting
