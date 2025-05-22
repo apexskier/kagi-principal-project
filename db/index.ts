@@ -17,9 +17,5 @@ export interface ScrapedUrl {
   lock: unknown | null;
 }
 
-export default postgres({
-  host: "localhost",
-  username: "postgres",
-  password: "password",
-  database: "postgres",
-});
+// configuration is always via psql environment variables
+export default postgres();

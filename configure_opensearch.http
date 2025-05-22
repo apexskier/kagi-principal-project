@@ -84,9 +84,3 @@ Content-Type: application/json
     }
   }
 }
-
-### get mappings of index
-GET {{OPENSEARCH_BASE_URL}}/{{index_id}}/_mapping
-
-###
-GET {{OPENSEARCH_BASE_URL}}/_nodes/stats/indices/search

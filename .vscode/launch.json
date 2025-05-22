@@ -8,6 +8,7 @@
       "runtimeExecutable": "tsx",
       "console": "integratedTerminal",
       "internalConsoleOptions": "openOnFirstSessionStart",
+      "envFile": "${workspaceFolder}/local.env",
 
       // Files to exclude from debugger (e.g. call stack)
       "skipFiles": [
@@ -26,6 +27,7 @@
       "runtimeExecutable": "tsx",
       "console": "integratedTerminal",
       "internalConsoleOptions": "openOnFirstSessionStart",
+      "envFile": "${workspaceFolder}/local.env",
 
       // Files to exclude from debugger (e.g. call stack)
       "skipFiles": [

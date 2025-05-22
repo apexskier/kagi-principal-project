@@ -5,20 +5,13 @@ import { Client as OpenSearchClient } from "@opensearch-project/opensearch";
 import { v5 as uuid } from "uuid";
 import sql, { ScrapedUrl, UrlBase } from "../../db";
 
-// use v5 uuid to generate a unique id for the document based on the URL
+// we use v5 uuid to generate a unique id for the document based on the URL
 // can't use urls directly because of size constraints with the opensearch bulk API
 
 const namespace = "1f0365d8-2a44-6ef0-a5ff-7804559ef9c4";
 
-const config = {
-  OPENSEARCH_HOST: "http://localhost:9200",
-  OPENSEARCH_INDEX: "page_content_2",
-  OPENSEARCH_PIPELINE: "content_pipeline_1",
-};
-
-const version = "dev";
 const sharedHeaders = {
-  "User-Agent": `ApexskierScraper/${version} (pid:${process.pid})`,
+  "User-Agent": `ApexskierScraper/${process.env.VERSION} (pid:${process.pid})`,
 };
 
 function parseRobotsValue(value: string | null): {
@@ -346,11 +339,11 @@ export async function scrape(
   };
 }
 
-const client = new OpenSearchClient({
-  node: config.OPENSEARCH_HOST,
+const openSearchClient = new OpenSearchClient({
+  node: process.env.OPENSEARCH_HOST,
   auth: {
-    username: "admin",
-    password: process.env.OPENSEARCH_INITIAL_ADMIN_PASSWORD || "",
+    username: process.env.OPENSEARCH_USERNAME!,
+    password: process.env.OPENSEARCH_INITIAL_ADMIN_PASSWORD!,
   },
 });
 
@@ -436,9 +429,9 @@ async function scrapeAndStore(item: {
     }
   }
 
-  const bulkResponse = await client.bulk({
-    index: config.OPENSEARCH_INDEX,
-    pipeline: config.OPENSEARCH_PIPELINE,
+  const bulkResponse = await openSearchClient.bulk({
+    index: process.env.OPENSEARCH_INDEX,
+    pipeline: process.env.OPENSEARCH_PIPELINE,
     body: [
       // index content for the page we're targeting
       // (using the Upsert operation doesn't process the pipeline)

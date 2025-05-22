@@ -1,122 +1,66 @@
-This is a prototype search engine for searching programming documentation,
-built as a take-home project for Kagi.
+## Local development
 
-## 2025-05-20
+Development is configured for VSCode.
 
-Initial thoughts
+Requires a locally installed node toolchain (currently targeting v22).
 
-not an expert in DBs, and this part seems very important.
+Spin up service dependencies with docker compose.
 
-Scale with multiple crawlers running in parallel, need locking (and scalable locking) (locking can probably be non-guaranteed since we'll rerun to update results, just need to ensure writes are locked) idempotency?. Lock by domain, page...?
+```bash
+docker-compose up -d
+```
 
-follow standards, can't hand-build scrapers for each site
+Migrations are run automatically for postgres.
 
-- Respect robots.txt
-- noindex meta tag or header
-- Use sitemaps (crawl what the site wants me to crawl, not link traversal).
-- Use canonical rels, don't duplicate crawling
-- Looks like not all the listed domains have sitemaps or robots.txt files
-- Crawling over list of domains (possibly with path constraints)
-- Use semantic HTML (hopefully no need to scrape header/footer or common content, target is documentation)
-- outdated content - ETAGS (If-None-Match)? cache-control? HEAD requests?
+Run the http requests in `configure_opensearch.http` to configure OpenSearch (use the recommended `humao.rest-client` VSCode extension to run from within the editor)
 
-Probably out of scope, but semantic code scraping would be cool. Lex code and allow searching for symbols, etc
-Also out of scope - spell check on search terms
+After dependencies are running and configured, use the launch tasks to run the web server and crawler(s).
 
-Architecture
+## Deploying
 
-- Central DB
-- Crawlers
-  - Domain parser,
-  - URL sniffer - finds pages to look at content in. Given entrypoint (url), looks at robots.txt, sitemap.xml, etc. Deduplicates urls. Outputs additional pages to url sniff. Outputs pages to scrape. Outputs metadata (last crawled, what other things are linked to, etc, outputs information about scrapability of urls)
-  - Page scraper - given a page (url), scrapes contents and adds to search indices. Outputs search indice vectors, outputs page metadata (human readable for UI, stats), outputs additional pages to crawl via link detection
-- API
-  - search - given query, search DB and aggregate results, returns results and time to search
-  - domain stats
-  - page stats
-  - admin (needs auth)
-    - trigger recrawl
-    - data resets
-- UI
-  - html search form, returns results. Help, error messages, query syntax.
-  - https://developer.mozilla.org/en-US/docs/Web/XML/Guides/OpenSearch
-- Orchestration - trigger crawlers, ensure site is up
+This project is deployed to a kubernetes cluster using Helm. After kubernetes credentials and connection is established in your local environment, run.
 
-Security
+For initial setup:
 
-- Prevent abuse, simple cloudflare protection? Simple rate limiting by IP?
-- Need authn/authz over admin
+```bash
+helm install --create-namespace --namespace $NAMESPACE $DEPLOYMENT_NAME .
+```
 
-Data
+Migrations and database setup is currently manual:
 
-- "Each result should include the title, link, and a relevant snippet from the page."
-- "Bonus points for supporting both a classical index as well as an embedding based retrieval over results."
+```bash
+# connect to the postgres instance
+kubectl port-forward pods/postgres-{pod-identifier} 5432:5432
+# from the migrations dir
+cd postgres_migrations/
+# use an environment with psql (I don't have it locally)
+docker run -v $PWD:/app -w /app --rm -it --entrypoint bash --network=host postgres
+# run a migration - this assumes macOS docker
+psql -h host.docker.internal -U postgres -d postgres --password -a -f ./migrate_{number}.sql
+```
 
-- Title, link fairly easy (canonical links!)
-- snippet from page - store full page contents likely. Return cursors in page content? HTML, so should we store plain text or html? I would prefer html since formatting is more important for docs (code elements, and ~syntax highlighting~ - syntax highlighting would require css)
+## Data dump
 
-Store vector embedding for document?
+### Postgres
 
-I'd like to build this in such a way that the page scraper output different types of indices, both to compare quality and in future to add additional search heuristics. Bag of words, word embedding, etc.
+Use `pg_dump` and `pg_restore` to dump and restore data.
 
-Documentation is human facing, html is human facing
+Example to dump local:
 
-Using OpenSearch for search indexing. Flexible (can support many types of searching, including pre-trained vector embedding), full featured, appropriate license, means I don't have to build out myself. Also has ingest pipelines to handle stop word cleaning, etc. Indicing and optimizing is a huge topic and I want to get something up sooner rather than later.
+```bash
+docker run -v $PWD:/app -w /app --rm -it --entrypoint bash --network=host
+pg_dump -h host.docker.internal -U postgres > ./bulk_data/postgres.sql
+```
 
-Using Postgres for managing crawling. Postgres is robust, I'm somewhat familiar.
+### OpenSearch
 
-- queuing crawlers
-- crawler statistics
+Use [`elasticdump`](https://github.com/elasticsearch-dump/elasticsearch-dump).
 
-What data are we storing per indexed page?
+Example:
 
-- title
-- date last updated
-- date indexed/crawled
-- indexed content
-- url (including domain/path/etc)
-- **Optimizing rankings comes later. Need the project running to be able to test optimizations**
-
-HTML parsing libraries
-
-- https://github.com/fb55/htmlparser2 - forgiving (people don't follow standards), popular, fast.
-
-## 2025-05-21
-
-16:00 notes
-
-I've got something that's working, but not within the desired parameters.
-
-First, index latency is not within 50ms. I don't yet know if this is because I'm not optimizing OpenSearch right (I am running locally), or if it's a fundamental issue with OpenSearch. Given DB/indexing isn't my background, I decided to use an out-of-the box open source option, but in the real world this might require a lot more attention.
-
-User interface is up, it's simple and static and not pretty, but it works. Definitely fulfills the requirements.
-
-Crawler is working, and respects some good standards and conventions but not every one I'd like.
-
-MDN has a lot of pages since they have so many languages. Might want to deprioritize other langauges. I'm randomly selecting the next page to scrape, but this inherently amplifies big sites, and the problem grows since it biases toward following links to those big sites. IDEA: I could randomly select an url prefix, then randomly select a path from that.
-
-given this is in the prompt
-
-> 4. Explain how you optimized ranking to achieve high relevancy in the search results.
->    I'm probably expected to optimize rankings. I'm not doing this at all yet, except for trying to query the body and choosing a solid base of opensearch.
-
-TODO: (for sure)
-
-- documentation for dev environment
-- documentation for bootstrapping the project
-- documentation for architecture
-- documentation for choices made
-- deployment to a real environment
-- rescraping of outdated content (currently only scraping new urls)
-
-TODO: (hopefully)
-
-- improve latency
-- improve result relevancy
-- tests
-- linting and formatting
-- CI/build automation
-- monitoring/observability
-  - structured logs
-  - metrics
-  - bug reporting
+```bash
+npx elasticdump \
+  --type=data \
+  --input=http://localhost:9200/page_content_2 \
+  --output=./bulk_data/opensearch-data.json
+```

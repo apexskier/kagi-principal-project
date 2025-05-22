@@ -17,16 +17,8 @@ const logger = pino({
   },
 });
 
-const config = {
-  OPENSEARCH_HOST: "http://localhost:9200",
-  OPENSEARCH_INDEX: "page_content_2",
-  OPENSEARCH_PIPELINE: "content_pipeline_1",
-};
-
 const app = express();
 app.use(logger);
-
-const port = 3000;
 
 const indexHtmlPath = path.join(__dirname, "index.html");
 const indexHtmlContent = fs.readFileSync(indexHtmlPath, "utf-8");
@@ -35,11 +27,11 @@ app.get("/", (req, res) => {
   res.send(indexHtmlContent);
 });
 
-const client = new OpenSearchClient({
-  node: config.OPENSEARCH_HOST,
+const openSearchClient = new OpenSearchClient({
+  node: process.env.OPENSEARCH_HOST,
   auth: {
-    username: "admin",
-    password: process.env.OPENSEARCH_INITIAL_ADMIN_PASSWORD || "",
+    username: process.env.OPENSEARCH_USERNAME!,
+    password: process.env.OPENSEARCH_INITIAL_ADMIN_PASSWORD!,
   },
 });
 
@@ -58,8 +50,8 @@ app.get("/search", async (req, res) => {
   }
 
   const query = req.query.q.trim();
-  const results = await client.search({
-    index: config.OPENSEARCH_INDEX,
+  const results = await openSearchClient.search({
+    index: process.env.OPENSEARCH_INDEX,
     body: {
       query: {
         match: {
@@ -88,11 +80,6 @@ app.get("/search", async (req, res) => {
       },
     },
   });
-
-  if (results.body.hits.total === 0) {
-    res.status(404).send("No results found.");
-    return;
-  }
 
   const parameters = {
     q: query,
@@ -170,6 +157,7 @@ app.get("/stats", async (req, res) => {
   res.send(statsHtml);
 });
 
+const port = 3000;
 app.listen(port, (err) => {
   if (err) {
     throw err;
