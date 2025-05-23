@@ -3,5 +3,6 @@
     "local": {
       "OPENSEARCH_BASE_URL": "http://localhost:9200"
     }
-  }
+  },
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
 }

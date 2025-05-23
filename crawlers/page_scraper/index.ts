@@ -5,7 +5,10 @@ import type { Document } from "domhandler";
 import { Client as OpenSearchClient } from "@opensearch-project/opensearch";
 import { v5 as uuid } from "uuid";
 import { localsName } from "ejs";
+import pino from "pino";
 import sql, { ScrapedUrl, UrlBase } from "../../db";
+
+const rootLogger = pino();
 
 // we use v5 uuid to generate a unique id for the document based on the URL
 // can't use urls directly because of size constraints with the opensearch bulk API
@@ -193,6 +196,7 @@ export async function scrape(
     priorEtag: string | null;
     lastModified: Date | null;
   },
+  logger: pino.Logger,
 ): Promise<
   | {
       etag: string | null;
@@ -207,7 +211,7 @@ export async function scrape(
   | NoUpdateNeeded
   | { failedStatus: number }
 > {
-  console.log("Initial HEAD request to:", page.toString());
+  logger.debug("HEAD request");
   // first perform a HEAD request for a lighter weight check
   const headResponse = await fetch(page, {
     method: "HEAD",
@@ -215,11 +219,11 @@ export async function scrape(
     ...sharedHeaders,
   }).catch((err) => {
     // this can happen, for instance, if the SSL cert is bad
-    console.error("Error in HEAD request:", err);
+    logger.error({ err, msg: "error in HEAD request" });
     return new Response(null, { status: 0 });
   });
   if (headResponse.status !== 200) {
-    console.warn(`Failed to fetch page HEAD: ${headResponse.status}`);
+    logger.error({ msg: "failed to HEAD", status: headResponse.status });
     return { failedStatus: headResponse.status };
   }
 
@@ -229,10 +233,7 @@ export async function scrape(
   const robotsHeader = headResponse.headers.get("x-robots-tag");
   ({ noindex, nofollow } = parseRobotsValue(robotsHeader));
   if (noindex) {
-    console.warn(
-      "noindex header prevents indexing, skipping:",
-      page.toString(),
-    );
+    logger.info("noindex header prevents indexing");
     return NoUpdateNeeded;
   }
 
@@ -240,18 +241,14 @@ export async function scrape(
   const contentType = headResponse.headers.get("content-type");
   if (!contentType || !contentType.startsWith("text/html")) {
     // we only index html content
-    console.log(
-      "Content type is not HTML, skipping:",
-      page.toString(),
-      contentType,
-    );
+    logger.info("non-html content");
     return NoUpdateNeeded;
   }
 
   // check etag
   const etag = parseETag(headResponse.headers.get("etag"));
   if (etag && etag === meta.priorEtag) {
-    console.log("ETag matches, no update needed");
+    logger.info("etag matches");
     return NoUpdateNeeded;
   }
 
@@ -260,24 +257,24 @@ export async function scrape(
   if (lastModified) {
     const lastModifiedDate = new Date(lastModified);
     if (meta.lastModified && lastModifiedDate <= meta.lastModified) {
-      console.log("Last modified date matches, no update needed");
+      logger.info("last modified date matches");
       return NoUpdateNeeded;
     }
   }
 
   // if we get here, we need to do a full fetch
-  console.log("Full page request to:", page.toString());
+  logger.debug("GET request");
   const fullResponse = await fetch(page, {
     method: "GET",
     redirect: "follow",
     ...sharedHeaders,
   }).catch((err) => {
     // this can happen, for instance, if the SSL cert is bad
-    console.error("Error in HEAD request:", err);
+    logger.error({ err, msg: "error in GET request" });
     return new Response(null, { status: 0 });
   });
   if (fullResponse.status !== 200) {
-    console.warn(`Failed to fetch page: ${fullResponse.status}`);
+    logger.error({ msg: "failed to GET", status: headResponse.status });
     return { failedStatus: fullResponse.status };
   }
 
@@ -315,10 +312,7 @@ export async function scrape(
   ));
 
   if (noindex) {
-    console.warn(
-      "noindex meta tag prevents indexing, skipping:",
-      page.toString(),
-    );
+    logger.info("noindex meta tag prevents indexing");
     return NoUpdateNeeded;
   }
 
@@ -353,15 +347,20 @@ async function scrapeAndStore(item: {
   url_prefix: UrlBase["url_prefix"];
 }) {
   const url = new URL(item.path, `https://${item.url_prefix}`);
+  const logger = rootLogger.child({ url: url.toString() });
 
-  console.log("Scraping page:", url.toString());
+  logger.info("scraping page");
 
-  const result = await scrape(url, {
-    id: item.id,
-    priorEtag: item.etag,
-    lastModified: item.last_modified,
-  }).catch<ReturnType<typeof scrape>>(async (err) => {
-    console.error("Error in scrape:", err, url.toString());
+  const result = await scrape(
+    url,
+    {
+      id: item.id,
+      priorEtag: item.etag,
+      lastModified: item.last_modified,
+    },
+    logger,
+  ).catch<ReturnType<typeof scrape>>(async (err) => {
+    logger.error({ err, msg: "error in scrape" });
     await sql<never>`
     UPDATE scraped_urls
     SET
@@ -374,7 +373,7 @@ async function scrapeAndStore(item: {
 
   // Update scrape status
   if (result == NoUpdateNeeded) {
-    console.log("No update needed for page:", url.toString());
+    logger.info("no update needed");
     await sql<never>`
     UPDATE scraped_urls
     SET
@@ -405,26 +404,7 @@ async function scrapeAndStore(item: {
   // add hrefs to the scraped_urls table in bulk
   // TODO: merge into one query, dynamically generating the insert statement
   for (const href of result.hrefs) {
-    const urlPrefixMatcher = href.toString().slice(href.protocol.length + 2);
-    try {
-      const sqlResult = await sql`
-      INSERT INTO scraped_urls (url_base_id, path)
-        SELECT id, ${href.pathname}
-        FROM url_bases
-        WHERE ${urlPrefixMatcher} LIKE url_prefix || '%'
-        ORDER BY LENGTH(url_prefix) DESC
-        LIMIT 1
-      ON CONFLICT DO NOTHING;
-    `;
-      if (sqlResult.count === 0) {
-        // no rows were inserted, this means the URL is already in the table or not allowed
-        console.log("URL already in table or not allowed:", href.toString());
-      } else {
-        console.log("Queued URL:", href.toString());
-      }
-    } catch (err) {
-      console.error("Error inserting href:", href.toString(), err);
-    }
+    await queueHref(href, logger.child({ href: href.toString() }));
   }
 
   const bulkResponse = await openSearchClient.bulk({
@@ -467,16 +447,20 @@ async function scrapeAndStore(item: {
         if (key === "create" && value.status === 409) {
           // ignore conflict errors for create operations, indicates this is already queued
         } else {
-          console.error(`Error in bulk response: ${key}`, value.error);
+          logger.error({
+            err: value.error,
+            msg: "error in bulk response",
+            key,
+          });
         }
       }
     }
   }
   if (bulkResponse.warnings) {
-    console.warn("Bulk warnings:", bulkResponse.warnings);
+    logger.warn({ msg: "bulk warnings:", warnings: bulkResponse.warnings });
   }
 
-  console.log("Indexed page content:", result.canonical);
+  logger.info({ msg: "indexed page content to", canonical: result.canonical });
 }
 
 enum SelectionStrategy {
@@ -484,6 +468,29 @@ enum SelectionStrategy {
   // RandomByUrlBase reduces the bias towards large sites with many URLs
   // and allows us to scrape a more diverse set of sites
   RandomByUrlBase = "random_by_url_base",
+}
+
+async function queueHref(href: URL, logger: pino.Logger) {
+  const urlPrefixMatcher = href.toString().slice(href.protocol.length + 2);
+  try {
+    const sqlResult = await sql`
+      INSERT INTO scraped_urls (url_base_id, path)
+        SELECT id, ${href.pathname}
+        FROM url_bases
+        WHERE ${urlPrefixMatcher} LIKE url_prefix || '%'
+        ORDER BY LENGTH(url_prefix) DESC
+        LIMIT 1
+      ON CONFLICT DO NOTHING;
+    `;
+    if (sqlResult.count === 0) {
+      // no rows were inserted, this means the URL is already in the table or not allowed
+      logger.debug("href already in table or not allowed");
+    } else {
+      logger.debug("queued");
+    }
+  } catch (err) {
+    logger.error({ err, msg: "error queing href" });
+  }
 }
 
 async function selectAndLock(strategy: SelectionStrategy): Promise<
@@ -579,14 +586,14 @@ async function lockAndProcess() {
   const unchecked = await selectAndLock(SelectionStrategy.RandomByUrlBase);
 
   if (unchecked.length === 0) {
-    console.warn("No URLs to check");
+    rootLogger.warn("no urls to check");
     return;
   }
 
   try {
     await scrapeAndStore(unchecked[0]);
   } catch (err) {
-    console.error("Error in scrapeAndStore:", err);
+    rootLogger.error({ err, msg: "error in scrapeAndStore" });
   } finally {
     // unlock
     await sql<never>`
@@ -599,7 +606,7 @@ async function lockAndProcess() {
 
 let keepRunning = true;
 process.on("SIGINT", () => {
-  console.log("SIGINT received, shutting down after next scrape...");
+  rootLogger.info("SIGINT received, shutting down after next scrape...");
   keepRunning = false;
 });
 
@@ -608,14 +615,14 @@ async function main() {
     try {
       await lockAndProcess();
     } catch (err) {
-      console.error("Error in main loop:", err);
+      rootLogger.error({ err, msg: "error in main loop" });
     }
   }
 }
 
 main()
   .catch((err) => {
-    console.error("Error:", err);
+    rootLogger.fatal(err);
     process.exit(1);
   })
   .then(() => {
