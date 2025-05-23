@@ -47,6 +47,7 @@ async function scrapeAndStore(item: {
     SET
       last_check_time = NOW(),
       last_scrape_status = 0
+      no_scrape_before = NOW() + INTERVAL '1 hour'
     WHERE id = ${item.id};
     `;
     return NoUpdateNeeded;
@@ -58,7 +59,8 @@ async function scrapeAndStore(item: {
     await sql<never>`
     UPDATE scraped_urls
     SET
-      last_check_time = NOW()
+      last_check_time = NOW(),
+      no_scrape_before = NOW() + INTERVAL '1 day'
     WHERE id = ${item.id};
   `;
     return;
@@ -68,17 +70,20 @@ async function scrapeAndStore(item: {
     UPDATE scraped_urls
     SET
       last_check_time = NOW(),
-      last_scrape_status = ${result.failedStatus}
+      last_scrape_status = ${result.failedStatus},
+      no_scrape_before = NOW() + INTERVAL '1 week'
     WHERE id = ${item.id};
   `;
     return;
   }
+
   await sql<never>`
     UPDATE scraped_urls
     SET
       etag = ${result.etag},
       last_check_time = NOW(),
-      last_scrape_status = ${result.status}
+      last_scrape_status = ${result.status},
+      no_scrape_before = ${result.nextScrapeAfter}
     WHERE id = ${item.id};
   `;
 

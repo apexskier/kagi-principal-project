@@ -243,6 +243,31 @@ async function checkHead(
   return { nofollow };
 }
 
+const defaultCacheAge = 60 * 60 * 24; // 1 day
+
+function getNextScrapeDate(response: Response): Date {
+  const dates = [new Date(Date.now() + defaultCacheAge * 1000)];
+  const cacheControl = response.headers.get("cache-control");
+  if (cacheControl) {
+    const maxAgeMatch = cacheControl.match(/max-age=(\d+)/);
+    if (maxAgeMatch) {
+      const seconds = parseInt(maxAgeMatch[1], 10);
+      if (!isNaN(seconds)) {
+        dates.push(new Date(Date.now() + seconds * 1000));
+      }
+    }
+  }
+  const expires = response.headers.get("expires");
+  if (expires) {
+    const expiresDate = new Date(expires);
+    if (!isNaN(expiresDate.getTime())) {
+      dates.push(expiresDate);
+    }
+  }
+  // return the date furthest in the future
+  return new Date(Math.max(...dates.map((date) => date.getTime())));
+}
+
 // scrape handles all page crawling and parsing. It does not write to any databases.
 export async function scrape(
   page: URL,
@@ -262,6 +287,7 @@ export async function scrape(
       hrefs: ReadonlyArray<URL>;
       canonical: string;
       status: 200;
+      nextScrapeAfter: Date;
     }
   | NoUpdateNeeded
   | NoIndex
@@ -300,6 +326,7 @@ export async function scrape(
     return { failedStatus: response.status };
   }
 
+  const nextScrapeAfter = getNextScrapeDate(response);
   const newEtag = parseETag(response.headers.get("etag"));
   const newLastModified = response.headers.get("last-modified");
   const newDateModified = newLastModified ? new Date(newLastModified) : null;
@@ -351,5 +378,6 @@ export async function scrape(
     hrefs,
     canonical,
     status: response.status,
+    nextScrapeAfter,
   };
 }

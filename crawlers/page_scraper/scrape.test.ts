@@ -16,7 +16,9 @@ async function passthroughHead(
 }
 
 test.describe("scrape", () => {
-  test("scrapes page info", async () => {
+  test("scrapes page info", async (t) => {
+    t.mock.timers.enable({ apis: ["Date"] });
+
     const stream = pinoTest.sink();
     const logger = pino(stream);
 
@@ -69,6 +71,159 @@ test.describe("scrape", () => {
       lastModified: null,
       status: 200,
       title: null,
+      nextScrapeAfter: new Date(1000 * 60 * 60 * 24 * 1),
+    });
+  });
+
+  test.describe("next scrape after", () => {
+    test("uses default for nextScrapeAfter if largest", async (t) => {
+      t.mock.timers.enable({ apis: ["Date"] });
+
+      const stream = pinoTest.sink();
+      const logger = pino(stream);
+      const maxAge = 3600; // 1 hour
+      const expires = new Date(3600 * 1000);
+
+      global.fetch = stub([
+        passthroughHead,
+        async (_, init): Promise<Response> => {
+          assert.equal(init?.method, "GET");
+          return new Response(
+            `
+  <!doctype html>
+  <html lang="en">
+  <head></head>
+  <body>
+    <h1>Test</h1>
+  </body>
+  </html>
+        `,
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "text/html",
+                "Cache-Control": `max-age=${maxAge}`,
+                Expires: expires.toUTCString(),
+              },
+            },
+          );
+        },
+      ]);
+
+      const results = await scrape(
+        new URL("https://example.com"),
+        {
+          id: 1,
+          priorEtag: null,
+          priorLastModified: null,
+        },
+        logger,
+      );
+
+      assert.deepEqual(
+        (results as { nextScrapeAfter: Date }).nextScrapeAfter,
+        new Date(1000 * 60 * 60 * 24),
+      );
+    });
+
+    test("uses cache-control max-age for nextScrapeAfter if largest", async (t) => {
+      t.mock.timers.enable({ apis: ["Date"] });
+
+      const stream = pinoTest.sink();
+      const logger = pino(stream);
+      const maxAge = 93600; // 26 hours
+      const expires = new Date((maxAge - 1) * 1000);
+
+      global.fetch = stub([
+        passthroughHead,
+        async (_, init): Promise<Response> => {
+          assert.equal(init?.method, "GET");
+          return new Response(
+            `
+  <!doctype html>
+  <html lang="en">
+  <head></head>
+  <body>
+    <h1>Test</h1>
+  </body>
+  </html>
+        `,
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "text/html",
+                "Cache-Control": `max-age=${maxAge}`,
+                Expires: expires.toUTCString(),
+              },
+            },
+          );
+        },
+      ]);
+
+      const results = await scrape(
+        new URL("https://example.com"),
+        {
+          id: 1,
+          priorEtag: null,
+          priorLastModified: null,
+        },
+        logger,
+      );
+
+      assert.deepEqual(
+        (results as { nextScrapeAfter: Date }).nextScrapeAfter,
+        new Date(1000 * maxAge),
+      );
+    });
+
+    test("uses expires header for nextScrapeAfter if largest", async (t) => {
+      t.mock.timers.enable({ apis: ["Date"] });
+
+      const stream = pinoTest.sink();
+      const logger = pino(stream);
+      const maxAge = 93600; // 26 hours
+      const expires = new Date((maxAge + 1) * 1000);
+
+      global.fetch = stub([
+        passthroughHead,
+        async (_, init): Promise<Response> => {
+          assert.equal(init?.method, "GET");
+          return new Response(
+            `
+  <!doctype html>
+  <html lang="en">
+  <head></head>
+  <body>
+    <h1>Test</h1>
+  </body>
+  </html>
+        `,
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "text/html",
+                "Cache-Control": `max-age=${maxAge}`,
+                Expires: expires.toUTCString(),
+              },
+            },
+          );
+        },
+      ]);
+
+      const results = await scrape(
+        new URL("https://example.com"),
+        {
+          id: 1,
+          priorEtag: null,
+          priorLastModified: null,
+        },
+        logger,
+      );
+
+      assert.deepEqual(
+        (results as { nextScrapeAfter: Date }).nextScrapeAfter,
+        expires,
+      );
     });
   });
 
