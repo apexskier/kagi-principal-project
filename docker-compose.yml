@@ -65,7 +65,7 @@ services:
     container_name: postgres
     shm_size: 128mb
     volumes:
-      - ./postgres_migrations:/docker-entrypoint-initdb.d
+      - ./helm/postgres_migrations:/docker-entrypoint-initdb.d
     environment:
       POSTGRES_PASSWORD: password
     ports:
