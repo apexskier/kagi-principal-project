@@ -1,12 +1,13 @@
-import fs from "fs";
-import path from "path";
+import os from "node:os";
+import fs from "node:fs";
+import path from "node:path";
 import express from "express";
 import ejs from "ejs";
 import { Client as OpenSearchClient } from "@opensearch-project/opensearch";
-import pino from "pino-http";
+import pinoHttp from "pino-http";
 import sql, { UrlBase } from "../db";
 
-const logger = pino({
+const logger = pinoHttp({
   level: process.env.LOG_LEVEL || "trace",
   serializers: {
     req: ({ method, url, query, parameters }) => ({
@@ -16,6 +17,7 @@ const logger = pino({
       parameters,
     }),
   },
+  base: { hostname: os.hostname(), v: process.env.VERSION },
 });
 
 const app = express();

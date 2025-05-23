@@ -6,7 +6,10 @@ import pino from "pino";
 import sql, { ScrapedUrl, UrlBase } from "../../db";
 import { isFailedStatus, NoIndex, NoUpdateNeeded, scrape } from "./scrape";
 
-const rootLogger = pino({ level: process.env.LOG_LEVEL || "trace" });
+const rootLogger = pino({
+  level: process.env.LOG_LEVEL || "trace",
+  base: { hostname: os.hostname(), v: process.env.VERSION },
+});
 
 // we use v5 uuid to generate a unique id for the document based on the URL
 // can't use urls directly because of size constraints with the opensearch bulk API
