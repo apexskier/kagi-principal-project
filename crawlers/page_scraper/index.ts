@@ -75,7 +75,6 @@ async function scrapeAndStore(item: {
   `;
     return;
   }
-
   await sql<never>`
     UPDATE scraped_urls
     SET

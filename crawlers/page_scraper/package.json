@@ -4,7 +4,7 @@
   "main": "bundle/crawlers/page_scraper/index.js",
   "scripts": {
     "build": "tsc --build && sh -e bundle.sh",
-    "test": "node --import tsx --test *.test.ts"
+    "test": "node --env-file test.env --import tsx --test *.test.ts"
   },
   "author": "Cameron Little <cameron@camlittle.com>",
   "license": "UNLICENSED",

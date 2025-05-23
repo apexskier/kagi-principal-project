@@ -243,7 +243,10 @@ async function checkHead(
   return { nofollow };
 }
 
-const defaultCacheAge = 60 * 60 * 24; // 1 day
+const defaultCacheAge = parseInt(process.env.DEFAULT_CACHE_AGE ?? "", 10);
+if (!defaultCacheAge || isNaN(defaultCacheAge)) {
+  throw new Error("DEFAULT_CACHE_AGE must be a number");
+}
 
 function getNextScrapeDate(response: Response): Date {
   const dates = [new Date(Date.now() + defaultCacheAge * 1000)];
