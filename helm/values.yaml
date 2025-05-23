@@ -38,4 +38,4 @@ ingress-nginx:
 opensearch_index: "page_content_1"
 opensearch_pipeline: "content_pipeline_1"
 log_level: "info"
-default_cache_age: 86400 # 1 day
+default_cache_age: "86400" # 1 day
