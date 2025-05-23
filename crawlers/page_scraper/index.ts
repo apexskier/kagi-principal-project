@@ -1,7 +1,6 @@
 import os from "node:os";
 import { Client as OpenSearchClient } from "@opensearch-project/opensearch";
 import { v5 as uuid } from "uuid";
-import { localsName } from "ejs";
 import pino from "pino";
 import sql, { ScrapedUrl, UrlBase } from "../../db";
 import { isFailedStatus, NoIndex, NoUpdateNeeded, scrape } from "./scrape";
@@ -47,6 +46,7 @@ async function scrapeAndStore(item: {
     SET
       last_check_time = NOW(),
       last_scrape_status = 0
+      no_scrape_before = NOW() + INTERVAL '1 hour'
     WHERE id = ${item.id};
     `;
     return NoUpdateNeeded;
@@ -58,7 +58,8 @@ async function scrapeAndStore(item: {
     await sql<never>`
     UPDATE scraped_urls
     SET
-      last_check_time = NOW()
+      last_check_time = NOW(),
+      no_scrape_before = NOW() + INTERVAL '1 day'
     WHERE id = ${item.id};
   `;
     return;
@@ -68,7 +69,8 @@ async function scrapeAndStore(item: {
     UPDATE scraped_urls
     SET
       last_check_time = NOW(),
-      last_scrape_status = ${result.failedStatus}
+      last_scrape_status = ${result.failedStatus},
+      no_scrape_before = NOW() + INTERVAL '1 week'
     WHERE id = ${item.id};
   `;
     return;
@@ -78,7 +80,8 @@ async function scrapeAndStore(item: {
     SET
       etag = ${result.etag},
       last_check_time = NOW(),
-      last_scrape_status = ${result.status}
+      last_scrape_status = ${result.status},
+      no_scrape_before = ${result.nextScrapeAfter}
     WHERE id = ${item.id};
   `;
 
@@ -197,12 +200,12 @@ async function selectAndLock(strategy: SelectionStrategy): Promise<
       >`
       WITH locked AS (
         UPDATE scraped_urls
-        SET lock = ROW(${localsName}::text, NOW())
+        SET lock = ROW(${lockName}::text, NOW())
         WHERE id = (
-          SELECT id from scraped_urls
+          SELECT id FROM scraped_urls
           WHERE
-           last_check_time IS NULL
-           AND lock IS NULL
+            lock IS NULL
+            AND (no_scrape_before IS NULL OR no_scrape_before <= NOW())
           ORDER BY RANDOM()
           LIMIT 1
           FOR UPDATE SKIP LOCKED
@@ -219,7 +222,11 @@ async function selectAndLock(strategy: SelectionStrategy): Promise<
       SELECT id
       FROM url_bases
       WHERE EXISTS (
-        SELECT 1 FROM scraped_urls WHERE scraped_urls.url_base_id = url_bases.id
+        SELECT 1 FROM scraped_urls
+        WHERE
+          scraped_urls.url_base_id = url_bases.id
+          AND lock IS NULL
+          AND (no_scrape_before IS NULL OR no_scrape_before <= NOW())
       )
       ORDER BY RANDOM()
       LIMIT 1
@@ -245,8 +252,8 @@ async function selectAndLock(strategy: SelectionStrategy): Promise<
           SELECT id FROM scraped_urls
           WHERE
             url_base_id = ${id}
-            AND last_check_time IS NULL
             AND lock IS NULL
+            AND (no_scrape_before IS NULL OR no_scrape_before <= NOW())
           ORDER BY RANDOM()
           LIMIT 1
           FOR UPDATE SKIP LOCKED
