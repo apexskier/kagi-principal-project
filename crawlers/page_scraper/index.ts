@@ -75,6 +75,16 @@ async function scrapeAndStore(item: {
   `;
     return;
   }
+
+  // TODO: add language and index version
+  // langauge will be added as a new field to the index, and the web_server search
+  // will use it
+  // index version will be added to the scraped_urls table. If the index version
+  // from the DB is null or lower than the "current" one, we won't return
+  // NoUpdateNeeded, and instead will do the full GET and index. The selection
+  // strategy can also be updated to ignore no_scrape_before if the index
+  // version is out of date and there wasn't an error.
+
   await sql<never>`
     UPDATE scraped_urls
     SET
