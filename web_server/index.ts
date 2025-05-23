@@ -39,6 +39,11 @@ const resultsTemplateContent = fs.readFileSync(resultsTemplatePath, "utf-8");
 const resultsTemplate = ejs.compile(resultsTemplateContent);
 
 app.get("/search", async (req, res) => {
+  if (!req.query.q) {
+    res.redirect(303, "/");
+    return;
+  }
+
   if (typeof req.query.q !== "string") {
     res
       .status(400)

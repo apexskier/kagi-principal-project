@@ -310,6 +310,7 @@ export async function scrape(
     return NoUpdateNeeded;
   }
   if (isFailedStatus(headResponse)) {
+    // TODO: handle 429 errors (inspect retry headers, use that as nextScrapeAfter)
     return headResponse;
   }
 
