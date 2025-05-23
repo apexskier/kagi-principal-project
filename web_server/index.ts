@@ -7,6 +7,7 @@ import pino from "pino-http";
 import sql, { UrlBase } from "../db";
 
 const logger = pino({
+  level: process.env.LOG_LEVEL,
   serializers: {
     req: ({ method, url, query, parameters }) => ({
       method,

@@ -8,7 +8,7 @@ import { localsName } from "ejs";
 import pino from "pino";
 import sql, { ScrapedUrl, UrlBase } from "../../db";
 
-const rootLogger = pino();
+const rootLogger = pino({ level: process.env.LOG_LEVEL || "trace" });
 
 // we use v5 uuid to generate a unique id for the document based on the URL
 // can't use urls directly because of size constraints with the opensearch bulk API

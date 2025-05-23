@@ -176,3 +176,9 @@ TODO: (hopefully)
   - structured logs in scraper
   - metrics
   - bug reporting
+
+## 2025-05-23
+
+Latency documentation:
+
+- https://opensearch.org/blog/opensearch-project-update-performance-progress-in-opensearch-3-0/
