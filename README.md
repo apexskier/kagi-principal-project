@@ -1,5 +1,70 @@
 This is a search engine tailored for developer documentation.
 
+## Architecture
+
+This system is deployed to a kubernetes cluster, for simpler management (e.g. rolling deployment, file driven configuration, and networking).
+
+Two applications drive the custom logic. One is a simple [web server](./web_server/) and the other is a [page scraper](./crawlers/page_scraper/).
+
+We use cert-manager, Lets Encrypt, and NGINX to handle external network ingress, TLS, etc.
+
+Two databases are used. Postgres acts as a queue, storing URLs discovered and scraped, and serves as a record for the sites we're allowed to scrape. OpenSearch is our search database, responsible for indexing and searching documents.
+
+```mermaid
+graph TD
+  subgraph Kubernetes Cluster
+    WebServer@{shape: procs, label: "<b>Web Server</b>"}
+    PageScraper@{shape: procs, label: "<b>Page Scraper</b>"}
+    Postgres[Postgres]
+    OpenSearch@{shape: procs, label: OpenSearch Cluster}
+    OpenSearchDash[OpenSearch Dashboards]
+    CertManager[cert-manager]
+    IngressNginx[NGINX Ingress Controller]
+    PGPersistentVolume@{shape: lin-cyl, label: DigitalOcean Block Storage}
+    OSPersistentVolume@{shape: cyl, label: DigitalOcean Block Storage}
+  end
+
+  subgraph External
+    User[User / Browser]
+    GitHubCR[GitHub Container Registry]
+    LetsEncrypt[Let's Encrypt]
+    DigitalOceanLB[DigitalOcean Load Balancer]
+    DNS[DNS: kagi-principal-project.camlittle.com]
+  end
+
+  %% Ingress and Load Balancer
+  User --> DNS
+  DNS --> DigitalOceanLB
+  DigitalOceanLB --> IngressNginx
+  IngressNginx --> WebServer
+
+  %% Web Server and Page Scraper
+  WebServer --> OpenSearch --> PGPersistentVolume
+  WebServer --> Postgres --> OSPersistentVolume
+  PageScraper --> Postgres
+  PageScraper --> OpenSearch
+
+  %% OpenSearch Dashboards
+  OpenSearchDash --> OpenSearch
+
+  %% cert-manager and Let's Encrypt
+  CertManager -->|ACME Challenge| LetsEncrypt
+  CertManager --> IngressNginx
+
+  %% Images from GitHub Container Registry
+  GitHubCR --> WebServer
+  GitHubCR --> PageScraper
+
+  %% Secrets and Config
+  CertManager -->|TLS Secrets| IngressNginx
+
+  %% Highlight application code
+  classDef appCode stroke-width:2px;
+  class WebServer,PageScraper appCode;
+```
+
+Architecture and code attempts to follow [the twelve-factor app](https://12factor.net) methodology.
+
 ## Local development
 
 Development is configured for VSCode.
