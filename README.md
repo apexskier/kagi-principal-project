@@ -51,7 +51,6 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: postgres-secret
-type: Opaque
 stringData:
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: ... # a secure password
