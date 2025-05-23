@@ -23,6 +23,15 @@ jobs:
       - name: Log into github registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
+      # Version is a git commit hash, which I prefer over monotonic or semantic
+      # versioning for this use case. It's tied directly to a commit, which
+      # makes referencing and debugging easier. Semantic versioning isn't all
+      # that useful since this is continually deployed and it's not possible
+      # to automate semantic updates (for now, I guess) and is hard to detect
+      # backwards incompatibility. Monotonic versioning doesn't work with a
+      # branching development strategy, and we might want to release test
+      # branches into non-production environments.
+
       - name: Build web_server image
         run: |
           docker build -t web_server \
