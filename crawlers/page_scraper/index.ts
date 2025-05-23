@@ -172,6 +172,9 @@ function parseETag(etag: string | null): string | null {
 const NoUpdateNeeded = Symbol("NoUpdateNeeded");
 type NoUpdateNeeded = typeof NoUpdateNeeded;
 
+const NoIndex = Symbol("NoIndex");
+type NoIndex = typeof NoIndex;
+
 function isFailedStatus(
   x:
     | {
@@ -187,6 +190,68 @@ function isFailedStatus(
     | { failedStatus: number },
 ): x is { failedStatus: number } {
   return (x as { failedStatus: number }).failedStatus !== undefined;
+}
+
+// checkHead uses a lighter weight HEAD request to check if the page has changed
+// and if it should be indexed
+async function checkHead(
+  page: URL,
+  etag: string | null,
+  lastModified: Date | null,
+  logger: pino.Logger,
+) {
+  logger.debug("HEAD request");
+
+  // first perform a HEAD request for a lighter weight check
+  const response = await fetch(page, {
+    method: "HEAD",
+    redirect: "follow",
+    ...sharedHeaders,
+  }).catch((err) => {
+    // this can happen, for instance, if the SSL cert is bad
+    logger.error({ err, msg: "error in HEAD request" });
+    return new Response(null, { status: 0 });
+  });
+  if (response.status !== 200) {
+    logger.error({ msg: "failed to HEAD", status: response.status });
+    return { failedStatus: response.status };
+  }
+
+  const robotsHeader = response.headers.get("x-robots-tag");
+  const { noindex, nofollow } = parseRobotsValue(robotsHeader);
+  if (noindex) {
+    logger.info("noindex header prevents indexing");
+    return NoIndex;
+  }
+
+  // verify content type is html
+  const contentType = response.headers.get("content-type");
+  if (!contentType || !contentType.startsWith("text/html")) {
+    // we only index html content
+    logger.info("non-html content");
+    return NoIndex;
+  }
+
+  // check etag
+  const newEtag = parseETag(response.headers.get("etag"));
+  if (newEtag && newEtag === etag) {
+    logger.info("etag matches");
+    return NoUpdateNeeded;
+  }
+
+  // check last modified
+  if (lastModified) {
+    const newLastModified = response.headers.get("last-modified");
+    if (newLastModified) {
+      const newLastModifiedDate = new Date(newLastModified);
+      if (newLastModifiedDate && newLastModifiedDate <= lastModified) {
+        logger.info("last modified date matches");
+        return NoUpdateNeeded;
+      }
+    }
+  }
+
+  return { nofollow };
 }
 
 export async function scrape(
@@ -209,62 +274,26 @@ export async function scrape(
       status: 200;
     }
   | NoUpdateNeeded
+  | NoIndex
   | { failedStatus: number }
 > {
-  logger.debug("HEAD request");
-  // first perform a HEAD request for a lighter weight check
-  const headResponse = await fetch(page, {
-    method: "HEAD",
-    redirect: "follow",
-    ...sharedHeaders,
-  }).catch((err) => {
-    // this can happen, for instance, if the SSL cert is bad
-    logger.error({ err, msg: "error in HEAD request" });
-    return new Response(null, { status: 0 });
-  });
-  if (headResponse.status !== 200) {
-    logger.error({ msg: "failed to HEAD", status: headResponse.status });
-    return { failedStatus: headResponse.status };
+  const headResponse = await checkHead(
+    page,
+    meta.priorEtag,
+    meta.lastModified,
+    logger.child({ request: "head" }),
+  );
+  if (headResponse === NoIndex) {
+    return NoIndex;
   }
-
-  let noindex = false;
-  let nofollow = false;
-
-  const robotsHeader = headResponse.headers.get("x-robots-tag");
-  ({ noindex, nofollow } = parseRobotsValue(robotsHeader));
-  if (noindex) {
-    logger.info("noindex header prevents indexing");
+  // TODO: verify version of indexed data is up to date, otherwise index anyways
+  if (headResponse === NoUpdateNeeded) {
     return NoUpdateNeeded;
-  }
-
-  // verify content type is html
-  const contentType = headResponse.headers.get("content-type");
-  if (!contentType || !contentType.startsWith("text/html")) {
-    // we only index html content
-    logger.info("non-html content");
-    return NoUpdateNeeded;
-  }
-
-  // check etag
-  const etag = parseETag(headResponse.headers.get("etag"));
-  if (etag && etag === meta.priorEtag) {
-    logger.info("etag matches");
-    return NoUpdateNeeded;
-  }
-
-  // check last modified
-  const lastModified = headResponse.headers.get("last-modified");
-  if (lastModified) {
-    const lastModifiedDate = new Date(lastModified);
-    if (meta.lastModified && lastModifiedDate <= meta.lastModified) {
-      logger.info("last modified date matches");
-      return NoUpdateNeeded;
-    }
   }
 
   // if we get here, we need to do a full fetch
   logger.debug("GET request");
-  const fullResponse = await fetch(page, {
+  const response = await fetch(page, {
     method: "GET",
     redirect: "follow",
     ...sharedHeaders,
@@ -273,13 +302,13 @@ export async function scrape(
     logger.error({ err, msg: "error in GET request" });
     return new Response(null, { status: 0 });
   });
-  if (fullResponse.status !== 200) {
-    logger.error({ msg: "failed to GET", status: headResponse.status });
-    return { failedStatus: fullResponse.status };
+  if (response.status !== 200) {
+    logger.error({ msg: "failed to GET", status: response.status });
+    return { failedStatus: response.status };
   }
 
-  const newEtag = parseETag(fullResponse.headers.get("etag"));
-  const newLastModified = fullResponse.headers.get("last-modified");
+  const newEtag = parseETag(response.headers.get("etag"));
+  const newLastModified = response.headers.get("last-modified");
   let newDateModified: Date | null = null;
   if (newLastModified) {
     newDateModified = new Date(newLastModified);
@@ -291,7 +320,7 @@ export async function scrape(
   // ignoring header and footer, but not all html documents use the <main> tag.
   // Main risk here is high memory usage for large pages.
 
-  const document = htmlparser2.parseDocument(await fullResponse.text());
+  const document = htmlparser2.parseDocument(await response.text());
 
   const title = findTitle(document);
   const description = findDescription(document);
@@ -304,20 +333,20 @@ export async function scrape(
         !!element.attribs.href.trim(),
       document,
     )?.attribs.href || page.toString();
-  ({ noindex, nofollow } = parseRobotsValue(
+  const robots = parseRobotsValue(
     htmlparser2.DomUtils.findOne(
       (element) => element.name === "meta" && element.attribs.name === "robots",
       document,
     )?.attribs.content ?? null,
-  ));
-
-  if (noindex) {
+  );
+  if (robots.nofollow) {
     logger.info("noindex meta tag prevents indexing");
-    return NoUpdateNeeded;
+    return NoIndex;
   }
 
   // don't follow links if nofollow is set
-  const hrefs = nofollow ? [] : findHrefs(document, page);
+  const hrefs =
+    headResponse.nofollow || robots.nofollow ? [] : findHrefs(document, page);
 
   // TODO: set no scrape before based on cache control
   // TODO: handle backoff for 429 errors
@@ -331,7 +360,7 @@ export async function scrape(
     content,
     hrefs,
     canonical,
-    status: fullResponse.status,
+    status: response.status,
   };
 }
 
@@ -372,7 +401,7 @@ async function scrapeAndStore(item: {
   });
 
   // Update scrape status
-  if (result == NoUpdateNeeded) {
+  if (result == NoUpdateNeeded || result === NoIndex) {
     logger.info("no update needed");
     await sql<never>`
     UPDATE scraped_urls
