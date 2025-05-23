@@ -1,6 +1,0 @@
-node_modules/
-.vscode/settings.json
-dist/
-bundle/
-secrets/
-bulk_data/

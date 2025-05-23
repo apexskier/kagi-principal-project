@@ -2,6 +2,14 @@ opensearch:
   sysctlInit:
     enabled: true
 
+  initResources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
   extraEnvs:
     - name: DISABLE_INSTALL_DEMO_CONFIG
       value: "true"
