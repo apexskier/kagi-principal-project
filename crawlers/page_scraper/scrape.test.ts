@@ -6,7 +6,7 @@ import { NoIndex, NoUpdateNeeded, scrape } from "./scrape";
 
 async function passthroughHead(
   _: string | URL | Request,
-  init?: RequestInit
+  init?: RequestInit,
 ): Promise<Response> {
   assert.equal(init?.method, "HEAD");
   return new Response("mocked body", {
@@ -40,7 +40,7 @@ test.describe("scrape", () => {
           {
             status: 200,
             headers: { "Content-Type": "text/html" },
-          }
+          },
         );
       },
     ]);
@@ -52,7 +52,7 @@ test.describe("scrape", () => {
         priorEtag: null,
         priorLastModified: null,
       },
-      logger
+      logger,
     );
 
     assert.deepEqual(results, {
@@ -92,7 +92,7 @@ test.describe("scrape", () => {
           priorEtag: null,
           priorLastModified: null,
         },
-        logger
+        logger,
       );
 
       assert.equal(results, NoIndex);
@@ -120,7 +120,7 @@ test.describe("scrape", () => {
           priorEtag: null,
           priorLastModified: null,
         },
-        logger
+        logger,
       );
 
       assert.equal(results, NoIndex);
@@ -142,7 +142,7 @@ test.describe("scrape", () => {
           priorEtag: null,
           priorLastModified: null,
         },
-        logger
+        logger,
       );
 
       assert.deepEqual(results, { failedStatus: 599 });
@@ -167,7 +167,7 @@ test.describe("scrape", () => {
           priorEtag: null,
           priorLastModified: null,
         },
-        logger
+        logger,
       );
 
       assert.deepEqual(results, { failedStatus: 456 });
@@ -195,7 +195,7 @@ test.describe("scrape", () => {
           priorEtag: "abc123",
           priorLastModified: null,
         },
-        logger
+        logger,
       );
 
       assert.equal(results, NoUpdateNeeded);
@@ -224,7 +224,7 @@ test.describe("scrape", () => {
           priorEtag: null,
           priorLastModified: new Date(lastModified),
         },
-        logger
+        logger,
       );
 
       assert.equal(results, NoUpdateNeeded);
@@ -255,7 +255,7 @@ test.describe("scrape", () => {
             {
               status: 200,
               headers: { "Content-Type": "text/html" },
-            }
+            },
           );
         },
       ]);
@@ -267,7 +267,7 @@ test.describe("scrape", () => {
           priorEtag: null,
           priorLastModified: null,
         },
-        logger
+        logger,
       );
 
       assert.equal(results, NoIndex);
@@ -303,7 +303,7 @@ test.describe("scrape", () => {
             {
               status: 200,
               headers: { "Content-Type": "text/html" },
-            }
+            },
           );
         },
       ]);
@@ -315,12 +315,12 @@ test.describe("scrape", () => {
           priorEtag: null,
           priorLastModified: null,
         },
-        logger
+        logger,
       );
 
       assert.deepEqual(
         (results as { hrefs: URL[]; failedStatus: number })?.hrefs,
-        []
+        [],
       );
     });
 
@@ -347,7 +347,7 @@ test.describe("scrape", () => {
             {
               status: 200,
               headers: { "Content-Type": "text/html" },
-            }
+            },
           );
         },
       ]);
@@ -359,12 +359,12 @@ test.describe("scrape", () => {
           priorEtag: null,
           priorLastModified: null,
         },
-        logger
+        logger,
       );
 
       assert.deepEqual(
         (results as { hrefs: URL[]; failedStatus: number })?.hrefs,
-        []
+        [],
       );
     });
 
@@ -393,7 +393,7 @@ test.describe("scrape", () => {
             {
               status: 200,
               headers: { "Content-Type": "text/html" },
-            }
+            },
           );
         },
       ]);
@@ -405,12 +405,12 @@ test.describe("scrape", () => {
           priorEtag: null,
           priorLastModified: null,
         },
-        logger
+        logger,
       );
 
       assert.deepEqual(
         (results as { hrefs: URL[]; failedStatus: number })?.hrefs,
-        [new URL("https://example.com/next")]
+        [new URL("https://example.com/next")],
       );
     });
 
@@ -439,7 +439,7 @@ test.describe("scrape", () => {
                 ETag: '"abc123"',
                 "Last-Modified": "Wed, 21 Oct 2015 07:28:00 GMT",
               },
-            }
+            },
           );
         },
       ]);
@@ -451,16 +451,16 @@ test.describe("scrape", () => {
           priorEtag: null,
           priorLastModified: null,
         },
-        logger
+        logger,
       );
 
       assert.equal(
         (results as { etag: string; failedStatus: number })?.etag,
-        "abc123"
+        "abc123",
       );
       assert.deepEqual(
         (results as { lastModified: Date; failedStatus: number })?.lastModified,
-        new Date("Wed, 21 Oct 2015 07:28:00 GMT")
+        new Date("Wed, 21 Oct 2015 07:28:00 GMT"),
       );
     });
 
@@ -478,14 +478,14 @@ function stub<
   test.after(() => {
     if (count < responses.length) {
       assert.fail(
-        `Mock function was not called enough times. Expected ${responses.length} but got ${count}.`
+        `Mock function was not called enough times. Expected ${responses.length} but got ${count}.`,
       );
     }
   });
   return (...args: Args): Return => {
     if (count >= responses.length) {
       assert.fail(
-        `Mock function called more times than expected. Expected ${responses.length} but got ${count + 1}.`
+        `Mock function called more times than expected. Expected ${responses.length} but got ${count + 1}.`,
       );
     }
     const result = responses[count](...args);

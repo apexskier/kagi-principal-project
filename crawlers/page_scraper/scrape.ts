@@ -26,7 +26,7 @@ function findTitle(document: Document): string | null {
   // first look for a <title> tag
   const titleNode = htmlparser2.DomUtils.findOne(
     (element) => element.name === "title",
-    document
+    document,
   );
   if (titleNode) {
     const title = htmlparser2.DomUtils.textContent(titleNode).trim();
@@ -38,7 +38,7 @@ function findTitle(document: Document): string | null {
   // if no <title> tag, look for a <meta name="title"> tag
   const metaTitleNode = htmlparser2.DomUtils.findOne(
     (element) => element.name === "meta" && element.attribs.name === "title",
-    document
+    document,
   );
   if (metaTitleNode) {
     const title = metaTitleNode.attribs.content.trim();
@@ -57,7 +57,7 @@ function findDescription(document: Document): string | null {
   const metaDescriptionNode = htmlparser2.DomUtils.findOne(
     (element) =>
       element.name === "meta" && element.attribs.name === "description",
-    document
+    document,
   );
   if (metaDescriptionNode) {
     const description = metaDescriptionNode.attribs.content.trim();
@@ -98,7 +98,7 @@ function findContent(document: Document): string | null {
   // fall back to role="main"
   const roleMainNode = htmlparser2.DomUtils.findOne(
     (element) => element.attribs.role === "main",
-    document
+    document,
   );
   if (roleMainNode) {
     return domSerializer(roleMainNode);
@@ -107,7 +107,7 @@ function findContent(document: Document): string | null {
   // fall back to <body> tag
   const bodyNode = htmlparser2.DomUtils.findOne(
     (element) => element.name === "body",
-    document
+    document,
   );
   if (bodyNode) {
     return domSerializer(bodyNode);
@@ -137,8 +137,8 @@ function findHrefs(document: Document, base: URL): ReadonlyArray<URL> {
           return false;
         }
         return true;
-      }, document).map((element) => element.attribs.href.trim())
-    )
+      }, document).map((element) => element.attribs.href.trim()),
+    ),
   )
     .map((href) => new URL(href, base))
     .filter((href) => {
@@ -176,7 +176,7 @@ export const NoIndex = Symbol("NoIndex");
 export type NoIndex = typeof NoIndex;
 
 export function isFailedStatus<T>(
-  x: T | { failedStatus: number }
+  x: T | { failedStatus: number },
 ): x is { failedStatus: number } {
   return (x as { failedStatus: number }).failedStatus !== undefined;
 }
@@ -187,7 +187,7 @@ async function checkHead(
   page: URL,
   etag: string | null,
   lastModified: Date | null,
-  logger: pino.Logger
+  logger: pino.Logger,
 ) {
   logger.debug("HEAD request");
 
@@ -250,7 +250,7 @@ export async function scrape(
     priorEtag: string | null;
     priorLastModified: Date | null;
   },
-  logger: pino.Logger
+  logger: pino.Logger,
 ): Promise<
   | {
       etag: string | null;
@@ -270,7 +270,7 @@ export async function scrape(
     page,
     meta.priorEtag,
     meta.priorLastModified,
-    logger.child({ request: "head" })
+    logger.child({ request: "head" }),
   );
   if (headResponse === NoIndex) {
     return NoIndex;
@@ -320,13 +320,13 @@ export async function scrape(
         element.name === "link" &&
         element.attribs.rel === "canonical" &&
         !!element.attribs.href.trim(),
-      document
+      document,
     )?.attribs.href || page.toString();
   const robots = parseRobotsValue(
     htmlparser2.DomUtils.findOne(
       (element) => element.name === "meta" && element.attribs.name === "robots",
-      document
-    )?.attribs.content ?? null
+      document,
+    )?.attribs.content ?? null,
   );
   if (robots.noindex) {
     logger.info("noindex meta tag prevents indexing");

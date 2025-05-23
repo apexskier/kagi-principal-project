@@ -36,7 +36,7 @@ async function scrapeAndStore(item: {
       priorEtag: item.etag,
       priorLastModified: item.last_modified,
     },
-    logger
+    logger,
   ).catch<ReturnType<typeof scrape>>(async (err) => {
     logger.error({ err, msg: "error in scrape" });
     await sql<never>`
