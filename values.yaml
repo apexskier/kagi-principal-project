@@ -1,0 +1,30 @@
+opensearch:
+  sysctlInit:
+    enabled: true
+
+  extraEnvs:
+    - name: DISABLE_INSTALL_DEMO_CONFIG
+      value: "true"
+    # not really okay for production, but enables non-https communication
+    # in the cluster, which means I don't need to manage inter-pod certs
+    - name: DISABLE_SECURITY_PLUGIN
+      value: "true"
+
+opensearch-dashboards:
+  opensearchHosts: "http://opensearch-cluster-master:9200" # don't use https
+  extraEnvs:
+    # not really okay for production, but enables non-https communication
+    # in the cluster, which means I don't need to manage inter-pod certs
+    - name: DISABLE_SECURITY_DASHBOARDS_PLUGIN
+      value: "true"
+
+cert-manager:
+  # namespace: cert-manager
+  crds:
+    enabled: true
+
+ingress-nginx: {}
+  # namespace: ingress-nginx
+
+opensearch_index: "page_content_1"
+opensearch_pipeline: "content_pipeline_1"

@@ -1,0 +1,48 @@
+{{- $name := .Values.opensearch_index | required ".Values.opensearch_index from values.yaml is required." -}}
+{{- $name := .Values.opensearch_pipeline | required ".Values.opensearch_pipeline from values.yaml is required." -}}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: page-scraper
+  labels:
+    app: page-scraper
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: page-scraper
+  template:
+    metadata:
+      labels:
+        app: page-scraper
+    spec:
+      containers:
+        - name: page-scraper
+          image: ghcr.io/apexskier/kagi-principal-project/page_scraper:latest
+          imagePullPolicy: Always
+          env:
+            - name: PGHOST
+              value: postgres
+            - name: PGPORT
+              value: "5432"
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: OPENSEARCH_HOST
+              value: http://opensearch-cluster-master:9200
+            - name: OPENSEARCH_INDEX
+              value: {{ .Values.opensearch_index }}
+            - name: OPENSEARCH_PIPELINE
+              value: {{ .Values.opensearch_pipeline }}
+      imagePullSecrets:
+        - name: dockerconfigjson-github-com

@@ -1,5 +1,5 @@
 @pipeline_id = content_pipeline_1
-@index_id = page_content_2
+@index_id = page_content_1
 
 ### verify connectivity
 GET {{OPENSEARCH_BASE_URL}}

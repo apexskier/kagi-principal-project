@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-server
+  labels:
+    app: web-server
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: web-server
+  template:
+    metadata:
+      labels:
+        app: web-server
+    spec:
+      containers:
+        - name: web-server
+          image: ghcr.io/apexskier/kagi-principal-project/web_server:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            failureThreshold: 5
+            periodSeconds: 60
+          startupProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 20
+            failureThreshold: 10
+            periodSeconds: 5
+          env:
+            - name: PGHOST
+              value: postgres
+            - name: PGPORT
+              value: "5432"
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: OPENSEARCH_HOST
+              value: http://opensearch-cluster-master:9200
+            - name: OPENSEARCH_INDEX
+              value: {{ .Values.opensearch_index }}
+            - name: OPENSEARCH_PIPELINE
+              value: {{ .Values.opensearch_pipeline }}
+      imagePullSecrets:
+        - name: dockerconfigjson-github-com
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: web-server
+  name: web-server
+spec:
+  selector:
+    app: web-server
+  ports:
+    - port: 80
+      protocol: TCP
+      targetPort: 3000
+      name: http-main
