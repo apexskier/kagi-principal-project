@@ -123,7 +123,7 @@ function findHrefs(document: Document, base: URL): ReadonlyArray<URL> {
         if (element.name !== "a") {
           return false;
         }
-        if (!element.attribs.href.trim()) {
+        if (!element.attribs.href?.trim()) {
           return false;
         }
         // filter out hrefs that have nofollow
@@ -243,6 +243,7 @@ async function checkHead(
   return { nofollow };
 }
 
+// scrape handles all page crawling and parsing. It does not write to any databases.
 export async function scrape(
   page: URL,
   meta: {
