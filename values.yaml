@@ -23,7 +23,8 @@ cert-manager:
   crds:
     enabled: true
 
-ingress-nginx: {}
+ingress-nginx:
+  {}
   # namespace: ingress-nginx
 
 opensearch_index: "page_content_1"

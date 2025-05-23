@@ -28,7 +28,7 @@ app.get("/", (req, res) => {
 });
 
 const openSearchClient = new OpenSearchClient({
-  node: process.env.OPENSEARCH_HOST
+  node: process.env.OPENSEARCH_HOST,
 });
 
 const resultsTemplatePath = path.join(__dirname, "results.ejs");

@@ -12,9 +12,17 @@ docker-compose up -d
 
 Migrations are run automatically for postgres.
 
-Run the http requests in `configure_opensearch.http` to configure OpenSearch (use the recommended `humao.rest-client` VSCode extension to run from within the editor)
+Run the http requests in `configure_opensearch.http` to configure OpenSearch (use the recommended `humao.rest-client` VSCode extension to run from within the editor).
 
 After dependencies are running and configured, use the launch tasks to run the web server and crawler(s).
+
+| Service                   | URL                   |
+| ------------------------- | --------------------- |
+| Application Web Interface | http://localhost:3000 |
+| OpenSearch Dashboards     | http://localhost:5601 |
+| DB Adminer                | http://localhost:8080 |
+
+The local postgres db uses defaults (username: `postgres`, database: `postgres`), and `password` for password.
 
 ## Deploying
 
@@ -23,6 +31,33 @@ This project is deployed to a managed DigitalOcean Kubernetes cluster using Helm
 ### Initial setup
 
 This expects a managed DigitalOcean Kubernetes cluster to be set up, and locally accessible via kubectl.
+
+First, deploy these kubernetes secrets:
+
+```yaml
+kind: Secret
+type: kubernetes.io/dockerconfigjson
+apiVersion: v1
+metadata:
+  name: dockerconfigjson-github-com
+stringData:
+  .dockerconfigjson: |
+    {"auths":{"ghcr.io":{"auth":"..."}}}
+
+
+# the value for auth is base64 encoded "username:ghp_...." with a github access token
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+type: Opaque
+stringData:
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: ... # a secure password
+  POSTGRES_DB: postgres
+  PGDATA: /var/lib/postgresql/data/pgdata
+```
 
 Helm is used to manage deployment.
 
@@ -68,7 +103,7 @@ kubectl rollout restart deployment/page-scraper
 
 Monitoring is not robust currently.
 
-Kubernetes logs are available. 
+Kubernetes logs are available.
 
 An opensearch dashboard is running without auth. Port forward and visit http://localhost:5601 to use it.
 

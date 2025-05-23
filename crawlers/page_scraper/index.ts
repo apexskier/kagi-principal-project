@@ -1,8 +1,10 @@
+import os from "node:os";
 import * as htmlparser2 from "htmlparser2";
 import domSerializer from "dom-serializer";
 import type { Document } from "domhandler";
 import { Client as OpenSearchClient } from "@opensearch-project/opensearch";
 import { v5 as uuid } from "uuid";
+import { localsName } from "ejs";
 import sql, { ScrapedUrl, UrlBase } from "../../db";
 
 // we use v5 uuid to generate a unique id for the document based on the URL
@@ -341,10 +343,6 @@ export async function scrape(
 
 const openSearchClient = new OpenSearchClient({
   node: process.env.OPENSEARCH_HOST,
-  auth: {
-    username: process.env.OPENSEARCH_USERNAME!,
-    password: process.env.OPENSEARCH_INITIAL_ADMIN_PASSWORD!,
-  },
 });
 
 async function scrapeAndStore(item: {
@@ -432,6 +430,7 @@ async function scrapeAndStore(item: {
   const bulkResponse = await openSearchClient.bulk({
     index: process.env.OPENSEARCH_INDEX,
     pipeline: process.env.OPENSEARCH_PIPELINE,
+    timeout: "1s",
     body: [
       // index content for the page we're targeting
       // (using the Upsert operation doesn't process the pipeline)
@@ -496,6 +495,7 @@ async function selectAndLock(strategy: SelectionStrategy): Promise<
     url_prefix: UrlBase["url_prefix"];
   }>
 > {
+  const lockName = os.hostname() || process.pid;
   switch (strategy) {
     case SelectionStrategy.Random:
       return sql<
@@ -509,7 +509,7 @@ async function selectAndLock(strategy: SelectionStrategy): Promise<
       >`
       WITH locked AS (
         UPDATE scraped_urls
-        SET lock = ROW(${process.pid}::text, NOW())
+        SET lock = ROW(${localsName}::text, NOW())
         WHERE id = (
           SELECT id from scraped_urls
           WHERE
@@ -552,7 +552,7 @@ async function selectAndLock(strategy: SelectionStrategy): Promise<
       >`
       WITH locked AS (
         UPDATE scraped_urls
-        SET lock = ROW(${process.pid}::text, NOW())
+        SET lock = ROW(${lockName}::text, NOW())
         WHERE id = (
           SELECT id FROM scraped_urls
           WHERE

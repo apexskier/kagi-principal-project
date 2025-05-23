@@ -120,3 +120,59 @@ TODO: (hopefully)
   - structured logs
   - metrics
   - bug reporting
+
+## 2025-05-22
+
+EOD notes
+
+From yesterday
+
+> TODO: (for sure)
+>
+> - ~documentation for dev environment~
+> - ~documentation for bootstrapping the project~
+> - documentation for architecture
+> - documentation for choices made
+> - ~deployment to a real environment~
+> - rescraping of outdated content (currently only scraping new urls)
+>
+> TODO: (hopefully)
+>
+> - improve latency
+> - improve result relevancy
+> - tests
+> - ~linting and formatting~
+> - CI/build automation **(partial)**
+> - monitoring/observability
+>   - structured logs **(partial)**
+>   - metrics
+>   - bug reporting
+
+Deployment and a live environment is working, took a while to get persistent volumes working (first time), but it's working.
+
+More docs are needed, and rescraping is needed.
+
+Couple areas for improvement of rankings:
+
+- I'm scraping non-english pages, and they're showing up in the results. Should be pretty doable to index language and query based on accept-language headers.
+- As I add improvements to ranking scores, it might be worth thinking about adding a version to the indexed documents. This could then be used as an input into the url selection strategy the scrapers use. It could also be used to deprioritize documents that we don't have the newest data imported for in search results.
+
+TODO: (for sure)
+
+- documentation for architecture
+- documentation for choices made
+- rescraping of outdated content (currently only scraping new urls)
+- filter by language, currently returning non-english results
+
+TODO: (hopefully)
+
+- improve latency
+- improve result relevancy
+- tests
+- CI/build automation
+  - PR checks - linting, tests
+  - auto deployment?
+- monitoring/observability
+  - structured logs in scraper
+  - metrics
+  - bug reporting

@@ -3,11 +3,9 @@
 
 ### verify connectivity
 GET {{OPENSEARCH_BASE_URL}}
-Authorization: Basic admin:{{OPENSEARCH_INITIAL_ADMIN_PASSWORD}}
 
 ### set up pipeline
 PUT {{OPENSEARCH_BASE_URL}}/_ingest/pipeline/{{pipeline_id}}
-Authorization: Basic admin:{{OPENSEARCH_INITIAL_ADMIN_PASSWORD}}
 Content-Type: application/json
 
 {
@@ -34,7 +32,6 @@ Content-Type: application/json
 
 ### simulate the pipeline
 POST {{OPENSEARCH_BASE_URL}}/_ingest/pipeline/{{pipeline_id}}/_simulate
-Authorization: Basic admin:{{OPENSEARCH_INITIAL_ADMIN_PASSWORD}}
 Content-Type: application/json
 
 {
@@ -48,7 +45,7 @@ Content-Type: application/json
 }
 
 ### delete index if it exists
-DELETE {{OPENSEARCH_BASE_URL}}/{{index_id}}
+GET {{OPENSEARCH_BASE_URL}}/{{index_id}}
 
 ### create index
 PUT {{OPENSEARCH_BASE_URL}}/{{index_id}}

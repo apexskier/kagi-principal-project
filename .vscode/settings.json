@@ -1,0 +1,7 @@
+{
+  "rest-client.environmentVariables": {
+    "local": {
+      "OPENSEARCH_BASE_URL": "http://localhost:9200"
+    }
+  }
+}
