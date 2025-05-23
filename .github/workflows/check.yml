@@ -22,5 +22,22 @@ jobs:
       - name: Lint root project
         run: npm run lint
 
-      - name: Build all workspaces
-        run: npm run build --workspaces
+      - name: Build web_server image
+        run: |
+          docker build -t web_server \
+            --build-arg="VERSION=${{ github.sha }}" \
+            --build-arg="WORKSPACE=web_server" \
+            --build-arg="WORKSPACE_DIR=web_server" \
+            --label "runnumber=${GITHUB_RUN_ID}" \
+            -f Dockerfile \
+            .
+
+      - name: Build page_scraper image
+        run: |
+          docker build -t page_scraper \
+            --build-arg="VERSION=${{ github.sha }}" \
+            --build-arg="WORKSPACE=page_scraper" \
+            --build-arg="WORKSPACE_DIR=crawlers/page_scraper" \
+            --label "runnumber=${GITHUB_RUN_ID}" \
+            -f Dockerfile \
+            .
