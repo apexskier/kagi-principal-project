@@ -9,6 +9,7 @@
   "license": "UNLICENSED",
   "description": "",
   "devDependencies": {
+    "@types/express": "^5.0.2",
     "typescript": "^5.8.3"
   },
   "dependencies": {
