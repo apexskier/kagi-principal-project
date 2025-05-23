@@ -66,11 +66,11 @@ jobs:
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         with:
-          args: get rollout restart deployment/web-server
+          args: rollout restart deployment/web-server
 
       - name: Deploy page_scraper
         uses: actions-hub/kubectl@v1.33.1
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         with:
-          args: get rollout restart deployment/page-scraper
+          args: rollout restart deployment/page-scraper
