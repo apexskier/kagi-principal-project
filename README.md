@@ -321,7 +321,7 @@ I'm attempting to fetch the most relevant content of the page by looking for the
 
 ### In future
 
-* I'd like to switch to a better tokenization heuristic, which OpenSearch should be able to do for me (I haven't verified stop words are removed, for example).
-* As mentioned above, be language aware. (index and search on language, based primarily on the `Accept-Language` header during search and the `<html lang>` attribute during indexing).
-* Add more user control. Since developers trend to be more towards "power-users", I think advanced search operators are more valuable. (e.g. search by specific language, use quotes for exact text matching, search by specific site)
-* Code aware search. This is a much more complex feature, but allow searching for specific syntax (e.g.`===`, `?.`). This would likely require a specific tokenization algorithm (maybe run a lexer on `<pre>` tag contents?) and would be indexed separately from the normal text content.
+- I'd like to switch to a better tokenization heuristic, which OpenSearch should be able to do for me (I haven't verified stop words are removed, for example).
+- As mentioned above, be language aware. (index and search on language, based primarily on the `Accept-Language` header during search and the `<html lang>` attribute during indexing).
+- Add more user control. Since developers trend to be more towards "power-users", I think advanced search operators are more valuable. (e.g. search by specific language, use quotes for exact text matching, search by specific site)
+- Code aware search. This is a much more complex feature, but allow searching for specific syntax (e.g.`===`, `?.`). This would likely require a specific tokenization algorithm (maybe run a lexer on `<pre>` tag contents?) and would be indexed separately from the normal text content.
