@@ -18,7 +18,7 @@ Welcome to the Principal Engineer test project! Your task is to build a mini sea
 
 - Choose the database architecture of your choice for storing crawl results, indexing, and retrieving from indexed results. Please explain your decision in the project's README file. You can use a single database for everything, multiple databases, hand managed flat file pipelines, etc. as you wish.
 - While this project is on a small amount of data, assume this would be built to scale in the range of 1PB for the amount of data being indexed.
-- **The maximum allowable search latency is 50ms**. This should remain true if we scaled the DB to 1PB. Explain how you would scale your system, but you can implement a single-node version.
+- The maximum allowable search latency is 50ms. This should remain true if we scaled the DB to 1PB. Explain how you would scale your system, but you can implement a single-node version.
 - Bonus points for supporting both a classical index as well as an embedding based retrieval over results.
 
 ## User Interface
