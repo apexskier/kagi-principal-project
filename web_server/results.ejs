@@ -175,8 +175,8 @@
           <p class="result-description"><%= result.fields.description %></p>
           <% } %> <% result.highlight.content_cleaned.forEach((match) => { %>
           <blockquote>
-            <%# highlights are html stripped, then only have strong tags added,
-            and are safe to render %> …<%- match %>…
+            <%# TODO ensure highlights are fully html stripped, see highlights within opensearch query
+            %> …<%= match %>…
           </blockquote>
           <% }) %>
           <p>

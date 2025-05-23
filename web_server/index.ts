@@ -70,8 +70,8 @@ app.get("/search", async (req, res) => {
           content_cleaned: {
             fragment_size: 150,
             number_of_fragments: 1,
-            pre_tags: ["<strong>"],
-            post_tags: ["</strong>"],
+            pre_tags: [""], // TODO: there's an escaping issue here - content_cleaned can still have HTML (example at https://css-tricks.com/one-of-those-onboarding-uis-with-anchor-positioning/)
+            post_tags: [""],
           },
         },
       },
