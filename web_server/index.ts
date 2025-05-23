@@ -7,7 +7,7 @@ import pino from "pino-http";
 import sql, { UrlBase } from "../db";
 
 const logger = pino({
-  level: process.env.LOG_LEVEL,
+  level: process.env.LOG_LEVEL || "trace",
   serializers: {
     req: ({ method, url, query, parameters }) => ({
       method,
@@ -161,9 +161,20 @@ app.get("/stats", async (req, res) => {
 });
 
 const port = 3000;
-app.listen(port, (err) => {
+const server = app.listen(port, (err) => {
   if (err) {
     throw err;
   }
   logger.logger.info("Server is listening on port %d", port);
 });
+
+function gracefullyShutdown() {
+  server.close(() => {
+    logger.logger.info("Server closed");
+  });
+}
+
+// gracefully shutdown on Ctrl-C
+process.on("SIGINT", gracefullyShutdown);
+// gracefully shutdown when K8s sends a SIGTERM
+process.on("SIGTERM", gracefullyShutdown);

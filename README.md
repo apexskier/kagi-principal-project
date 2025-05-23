@@ -1,3 +1,5 @@
+This is a search engine tailored for developer documentation.
+
 ## Local development
 
 Development is configured for VSCode.
@@ -90,10 +92,15 @@ kubectl port-forward service/opensearch-cluster-master 9200
 
 ### Upgrades
 
-Use helm to upgrade k8s configuration, and use `kubectl` to redeploy jobs with new code.
+Use helm to upgrade the deployment environment and configuration.
 
 ```bash
 helm upgrade --values ./values.yaml --set 'email=$EMAIL' $DEPLOYMENT_NAME .
+```
+
+Use `kubectl` to redeploy jobs with new code.
+
+```bash
 kubectl rollout restart deployment/web-server
 kubectl rollout restart deployment/page-scraper
 ```

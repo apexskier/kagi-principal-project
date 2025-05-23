@@ -283,8 +283,14 @@ async function lockAndProcess() {
 }
 
 let keepRunning = true;
+// gracefully shutdown on Ctrl-C
 process.on("SIGINT", () => {
   rootLogger.info("SIGINT received, shutting down after next scrape...");
+  keepRunning = false;
+});
+// gracefully shutdown when K8s sends a SIGTERM
+process.on("SIGTERM", () => {
+  rootLogger.info("SIGTERM received, shutting down after next scrape...");
   keepRunning = false;
 });
 
