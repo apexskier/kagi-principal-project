@@ -414,6 +414,51 @@ test.describe("scrape", () => {
       );
     });
 
+    test("handles undefined hrefs gracefully", async () => {
+      const stream = pinoTest.sink();
+      const logger = pino(stream);
+
+      global.fetch = stub([
+        passthroughHead,
+        async (_, init): Promise<Response> => {
+          assert.equal(init?.method, "GET");
+          return new Response(
+            `
+<!doctype html>
+<html lang="en">
+<head></head>
+<body>
+  <a>No href attribute</a>
+  <a href="">Empty href</a>
+  <a href="   ">Whitespace href</a>
+  <a href="https://example.com/valid">Valid</a>
+</body>
+</html>
+      `,
+            {
+              status: 200,
+              headers: { "Content-Type": "text/html" },
+            },
+          );
+        },
+      ]);
+
+      const results = await scrape(
+        new URL("https://example.com"),
+        {
+          id: 1,
+          priorEtag: null,
+          priorLastModified: null,
+        },
+        logger,
+      );
+
+      assert.deepEqual(
+        (results as { hrefs: URL[]; failedStatus: number })?.hrefs,
+        [new URL("https://example.com/valid")],
+      );
+    });
+
     test("parses etag and last-modified headers", async () => {
       const stream = pinoTest.sink();
       const logger = pino(stream);
