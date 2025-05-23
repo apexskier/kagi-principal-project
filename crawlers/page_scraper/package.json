@@ -4,7 +4,7 @@
   "main": "bundle/crawlers/page_scraper/index.js",
   "scripts": {
     "build": "tsc --build && sh -e bundle.sh",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --import tsx --test *.test.ts"
   },
   "author": "Cameron Little <cameron@camlittle.com>",
   "license": "UNLICENSED",
@@ -21,6 +21,7 @@
   "devDependencies": {
     "@types/ejs": "^3.1.5",
     "@types/express": "^5.0.2",
-    "@types/uuid": "^10.0.0"
+    "@types/uuid": "^10.0.0",
+    "pino-test": "^1.1.0"
   }
 }

@@ -3,6 +3,10 @@ name: PR Check
 on:
   pull_request:
 
+concurrency:
+  group: pr-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   pr-check:
     runs-on: ubuntu-latest
@@ -19,8 +23,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint root project
+      - name: Lint
         run: npm run lint
+
+      - name: Test
+        run: npm run -ws --if-present test
 
       - name: Build web_server image
         run: |
